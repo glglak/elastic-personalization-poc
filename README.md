@@ -2,7 +2,11 @@
 
 A proof of concept in .NET Core 8 that demonstrates how to implement a personalized content feed based on user interactions with Elasticsearch and a relational database for content actions.
 
-## Overview
+## 📋 Documentation
+
+**[View the full documentation on GitHub Pages](https://glglak.github.io/elastic-personalization-poc/)**
+
+## 🔍 Overview
 
 This proof of concept demonstrates how to create a personalized content feed by leveraging:
 
@@ -19,9 +23,7 @@ The system personalizes content based on a hierarchy of user interactions:
 5. User preferences
 6. User interests (lowest weight)
 
-## Architecture
-
-![Architecture Diagram](docs/architecture.svg)
+## 🏗️ Architecture
 
 The architecture follows a clean, layered approach:
 
@@ -30,29 +32,7 @@ The architecture follows a clean, layered approach:
 - **Infrastructure Layer**: Service implementations and data access
 - **Data Stores**: SQL Server for user interactions and Elasticsearch for content indexing
 
-## Project Structure
-
-The project follows a clean architecture pattern with the following components:
-
-- **ElasticPersonalization.Core**: Contains domain entities, interfaces, and business logic
-- **ElasticPersonalization.Infrastructure**: Contains implementations of repositories and services
-- **ElasticPersonalization.API**: Contains API controllers and configuration
-
-## Key Features
-
-- Personalized content feed using weighted user interactions
-- Full-text search with Elasticsearch
-- User interaction tracking (shares, likes, comments)
-- User follow relationships
-- User preferences and interests
-- Transparency in personalization (view personalization factors)
-
-## Prerequisites
-
-- .NET 8 SDK
-- Docker and Docker Compose
-
-## Getting Started
+## 🚀 Getting Started
 
 The easiest way to get started is using Docker Compose:
 
@@ -75,137 +55,23 @@ Once complete, you can access:
 - API: http://localhost:5000
 - Kibana: http://localhost:5601
 
-### Manual Setup
+## 🔧 Project Structure
 
-If you prefer to set up manually:
+The project follows a clean architecture pattern with the following components:
 
-1. Start the services:
-   ```
-   docker-compose up -d
-   ```
+- **ElasticPersonalization.Core**: Contains domain entities, interfaces, and business logic
+- **ElasticPersonalization.Infrastructure**: Contains implementations of repositories and services
+- **ElasticPersonalization.API**: Contains API controllers and configuration
 
-2. Initialize SQL Server:
-   ```
-   docker-compose exec -T db /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrongPassword! -i /var/opt/mssql/scripts/InitializeDB.sql
-   ```
+## 📚 Key Features
 
-3. Initialize Elasticsearch:
-   ```
-   docker-compose exec -T app node /app/scripts/InitializeElasticsearch.js http://elasticsearch:9200 content
-   ```
+- Personalized content feed using weighted user interactions
+- Full-text search with Elasticsearch
+- User interaction tracking (shares, likes, comments)
+- User follow relationships
+- User preferences and interests
+- Transparency in personalization (view personalization factors)
 
-## Development Setup
-
-For development:
-
-1. Install .NET 8 SDK
-2. Start SQL Server and Elasticsearch using Docker:
-   ```
-   docker-compose up -d db elasticsearch kibana
-   ```
-3. Update connection strings in `src/ElasticPersonalization.API/appsettings.Development.json`
-4. Run the application:
-   ```
-   dotnet run --project src/ElasticPersonalization.API
-   ```
-
-## API Endpoints
-
-### Content API
-
-- `GET /api/content/{id}` - Get content by ID
-- `POST /api/content` - Create new content
-- `PUT /api/content/{id}` - Update content
-- `DELETE /api/content/{id}` - Delete content
-- `GET /api/content/search?query={query}` - Search content
-- `GET /api/content/category/{category}` - Get content by category
-- `GET /api/content/tag/{tag}` - Get content by tag
-- `GET /api/content/creator/{creatorId}` - Get content by creator
-
-### Personalization API
-
-- `GET /api/personalization/feed/{userId}` - Get personalized feed for user
-- `GET /api/personalization/score/{userId}/{contentId}` - Calculate personalization score
-- `GET /api/personalization/factors/{userId}` - Get personalization factors for transparency
-
-### User Interaction API
-
-- `POST /api/userinteraction/share?userId={userId}&contentId={contentId}` - Share content
-- `DELETE /api/userinteraction/share?userId={userId}&contentId={contentId}` - Remove share
-- `POST /api/userinteraction/like?userId={userId}&contentId={contentId}` - Like content
-- `DELETE /api/userinteraction/like?userId={userId}&contentId={contentId}` - Remove like
-- `POST /api/userinteraction/comment?userId={userId}&contentId={contentId}` - Comment on content
-- `DELETE /api/userinteraction/comment/{commentId}` - Remove comment
-- `POST /api/userinteraction/follow?userId={userId}&followedUserId={followedUserId}` - Follow user
-- `DELETE /api/userinteraction/follow?userId={userId}&followedUserId={followedUserId}` - Unfollow user
-- `POST /api/userinteraction/preference?userId={userId}` - Add user preference
-- `DELETE /api/userinteraction/preference?userId={userId}&preference={preference}` - Remove user preference
-- `POST /api/userinteraction/interest?userId={userId}` - Add user interest
-- `DELETE /api/userinteraction/interest?userId={userId}&interest={interest}` - Remove user interest
-
-## Testing the API
-
-You can use the included sample data to test the API:
-
-1. Get personalized feed for user 1:
-   ```
-   GET /api/personalization/feed/1
-   ```
-
-2. See what factors influenced the personalization:
-   ```
-   GET /api/personalization/factors/1
-   ```
-
-3. Share content:
-   ```
-   POST /api/userinteraction/share?userId=1&contentId=5
-   ```
-
-4. Get the personalized feed again to see how it changed:
-   ```
-   GET /api/personalization/feed/1
-   ```
-
-## Personalization Algorithm
-
-![Personalization Flow](docs/personalization-flow.svg)
-
-The personalization algorithm works by:
-
-1. **User Profile Collection** - Gathering explicit preferences and interests from the user profile
-2. **User Interactions** - Analyzing implicit signals from user behavior (shares, likes, comments, follows)
-3. **Weight Calculation** - Applying configurable weights to each interaction type
-4. **Query Generation** - Building an Elasticsearch query with function scoring
-5. **Personalized Feed** - Returning scored and ranked content
-
-The weights for each factor can be configured in `appsettings.json`:
-
-```json
-"PersonalizationWeights": {
-  "ShareWeight": 5.0,
-  "CommentWeight": 4.0,
-  "LikeWeight": 3.0,
-  "FollowWeight": 4.5,
-  "PreferenceWeight": 2.0,
-  "InterestWeight": 1.5
-}
-```
-
-The algorithm uses Elasticsearch's function scoring to boost content based on:
-- Content matching user preferences and interests
-- Content from creators the user follows
-- Content with similar tags/categories to what the user has interacted with
-- Recent content (using a time decay function)
-
-## Future Enhancements
-
-- A/B testing for personalization algorithms
-- Machine learning for weight optimization
-- Collaborative filtering
-- Content-based recommendations
-- Advanced analytics on user engagement
-
-## License
+## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
