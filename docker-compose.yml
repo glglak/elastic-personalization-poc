@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # API Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:80"
+      - "5001:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__ContentActionsConnection=Server=db;Database=ContentActions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;
+      - ElasticsearchSettings__Url=http://elasticsearch:9200
+      - ElasticsearchSettings__DefaultIndex=content
+      - ElasticsearchSettings__Username=elastic
+      - ElasticsearchSettings__Password=changeme
+    depends_on:
+      - db
+      - elasticsearch
+    restart: on-failure
+
+  # SQL Server
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrongPassword!
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    restart: always
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    restart: always
+
+  # Kibana (optional, for Elasticsearch management)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.10
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    restart: always
+
+volumes:
+  sqldata:
+  esdata:
