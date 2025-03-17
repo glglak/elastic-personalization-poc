@@ -39,16 +39,64 @@ The project follows a clean architecture pattern with the following components:
 ## Prerequisites
 
 - .NET 8 SDK
-- SQL Server
-- Elasticsearch 7.x
-- Docker (optional, for containerization)
+- Docker and Docker Compose
 
 ## Getting Started
 
-1. Clone the repository
-2. Update connection strings in `appsettings.json` to point to your SQL Server and Elasticsearch instances
-3. Run database migrations: `dotnet ef database update --project src/ElasticPersonalization.Infrastructure --startup-project src/ElasticPersonalization.API`
-4. Start the application: `dotnet run --project src/ElasticPersonalization.API`
+The easiest way to get started is using Docker Compose:
+
+```bash
+# Clone the repository
+git clone https://github.com/glglak/elastic-personalization-poc.git
+cd elastic-personalization-poc
+
+# Start the services and initialize the environment
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+The script will:
+1. Start SQL Server, Elasticsearch, Kibana, and the API
+2. Initialize the SQL Server database with sample data
+3. Create and populate the Elasticsearch index
+
+Once complete, you can access:
+- API: http://localhost:5000
+- Kibana: http://localhost:5601
+
+### Manual Setup
+
+If you prefer to set up manually:
+
+1. Start the services:
+   ```
+   docker-compose up -d
+   ```
+
+2. Initialize SQL Server:
+   ```
+   docker-compose exec -T db /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrongPassword! -i /var/opt/mssql/scripts/InitializeDB.sql
+   ```
+
+3. Initialize Elasticsearch:
+   ```
+   docker-compose exec -T app node /app/scripts/InitializeElasticsearch.js http://elasticsearch:9200 content
+   ```
+
+## Development Setup
+
+For development:
+
+1. Install .NET 8 SDK
+2. Start SQL Server and Elasticsearch using Docker:
+   ```
+   docker-compose up -d db elasticsearch kibana
+   ```
+3. Update connection strings in `src/ElasticPersonalization.API/appsettings.Development.json`
+4. Run the application:
+   ```
+   dotnet run --project src/ElasticPersonalization.API
+   ```
 
 ## API Endpoints
 
@@ -84,6 +132,30 @@ The project follows a clean architecture pattern with the following components:
 - `POST /api/userinteraction/interest?userId={userId}` - Add user interest
 - `DELETE /api/userinteraction/interest?userId={userId}&interest={interest}` - Remove user interest
 
+## Testing the API
+
+You can use the included sample data to test the API:
+
+1. Get personalized feed for user 1:
+   ```
+   GET /api/personalization/feed/1
+   ```
+
+2. See what factors influenced the personalization:
+   ```
+   GET /api/personalization/factors/1
+   ```
+
+3. Share content:
+   ```
+   POST /api/userinteraction/share?userId=1&contentId=5
+   ```
+
+4. Get the personalized feed again to see how it changed:
+   ```
+   GET /api/personalization/feed/1
+   ```
+
 ## Personalization Algorithm
 
 The personalization algorithm works by:
@@ -107,28 +179,6 @@ The weights for each factor can be configured in `appsettings.json`:
 }
 ```
 
-## Database Schema
-
-The database schema includes:
-
-- Users with preferences and interests
-- Content items with tags and categories
-- User interactions (shares, likes, comments)
-- Follow relationships between users
-
-## Elasticsearch Mapping
-
-Content is indexed in Elasticsearch with the following structure:
-
-- ID
-- Title (boosted field for search)
-- Description
-- Body
-- Tags (for interest matching)
-- Categories (for preference matching)
-- Creator ID (for follow relationships)
-- Created date (for recency boosting)
-
 ## Future Enhancements
 
 - A/B testing for personalization algorithms
@@ -136,3 +186,7 @@ Content is indexed in Elasticsearch with the following structure:
 - Collaborative filtering
 - Content-based recommendations
 - Advanced analytics on user engagement
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
