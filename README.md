@@ -169,13 +169,15 @@ You can use the included sample data to test the API:
 
 ## Personalization Algorithm
 
+![Personalization Flow](docs/personalization-flow.svg)
+
 The personalization algorithm works by:
 
-1. Collecting user interaction data (shares, likes, comments)
-2. Analyzing user follow relationships
-3. Considering explicit user preferences and interests
-4. Weighting these factors according to configuration
-5. Using Elasticsearch function scoring to boost relevant content
+1. **User Profile Collection** - Gathering explicit preferences and interests from the user profile
+2. **User Interactions** - Analyzing implicit signals from user behavior (shares, likes, comments, follows)
+3. **Weight Calculation** - Applying configurable weights to each interaction type
+4. **Query Generation** - Building an Elasticsearch query with function scoring
+5. **Personalized Feed** - Returning scored and ranked content
 
 The weights for each factor can be configured in `appsettings.json`:
 
@@ -189,6 +191,12 @@ The weights for each factor can be configured in `appsettings.json`:
   "InterestWeight": 1.5
 }
 ```
+
+The algorithm uses Elasticsearch's function scoring to boost content based on:
+- Content matching user preferences and interests
+- Content from creators the user follows
+- Content with similar tags/categories to what the user has interacted with
+- Recent content (using a time decay function)
 
 ## Future Enhancements
 
