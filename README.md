@@ -19,6 +19,17 @@ The system personalizes content based on a hierarchy of user interactions:
 5. User preferences
 6. User interests (lowest weight)
 
+## Architecture
+
+![Architecture Diagram](docs/architecture.svg)
+
+The architecture follows a clean, layered approach:
+
+- **API Layer**: RESTful endpoints for content, personalization, and user interactions
+- **Core Layer**: Domain entities, interfaces, and business models
+- **Infrastructure Layer**: Service implementations and data access
+- **Data Stores**: SQL Server for user interactions and Elasticsearch for content indexing
+
 ## Project Structure
 
 The project follows a clean architecture pattern with the following components:
