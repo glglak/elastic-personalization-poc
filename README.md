@@ -55,6 +55,36 @@ Once complete, you can access:
 - API: http://localhost:5000
 - Kibana: http://localhost:5601
 
+### Health Monitoring
+
+The application includes a health check endpoint that monitors both the SQL Server database and Elasticsearch:
+
+```
+GET /api/health
+```
+
+This endpoint returns detailed information about the health of each component and can be used for monitoring.
+
+### Manual Database Setup
+
+If you need to manually set up or refresh the database, use the provided scripts:
+
+**Windows (PowerShell):**
+```powershell
+./scripts/RunMigrations.ps1
+```
+
+**Linux/macOS:**
+```bash
+chmod +x scripts/RunMigrations.sh
+./scripts/RunMigrations.sh
+```
+
+These scripts will:
+1. Apply all Entity Framework migrations to create the database schema
+2. Seed the database with sample data
+3. Create and populate the Elasticsearch index
+
 ## 🔧 Project Structure
 
 The project follows a clean architecture pattern with the following components:
@@ -62,6 +92,16 @@ The project follows a clean architecture pattern with the following components:
 - **ElasticPersonalization.Core**: Contains domain entities, interfaces, and business logic
 - **ElasticPersonalization.Infrastructure**: Contains implementations of repositories and services
 - **ElasticPersonalization.API**: Contains API controllers and configuration
+
+### Key Files and Directories
+
+- `src/ElasticPersonalization.Core/Entities/`: Domain entities for users, content, and interactions
+- `src/ElasticPersonalization.Core/Interfaces/`: Service interfaces
+- `src/ElasticPersonalization.Infrastructure/Services/`: Service implementations
+- `src/ElasticPersonalization.Infrastructure/Data/`: Database context and migrations
+- `src/ElasticPersonalization.API/Controllers/`: API endpoints
+- `scripts/`: Utility scripts for setup and maintenance
+- `docs/`: Documentation assets including diagrams
 
 ## 📚 Key Features
 
@@ -71,6 +111,65 @@ The project follows a clean architecture pattern with the following components:
 - User follow relationships
 - User preferences and interests
 - Transparency in personalization (view personalization factors)
+- Health monitoring for system components
+- Database migrations and seeding utilities
+
+## 🧪 Testing the API
+
+### Personalization Flow
+
+1. Get personalized feed for user 1:
+   ```
+   GET /api/personalization/feed/1
+   ```
+
+2. See what factors influenced the personalization:
+   ```
+   GET /api/personalization/factors/1
+   ```
+
+3. Add a new interaction (share content):
+   ```
+   POST /api/userinteraction/share?userId=1&contentId=5
+   ```
+
+4. Get the personalized feed again to see how it changed:
+   ```
+   GET /api/personalization/feed/1
+   ```
+
+5. Check the system health:
+   ```
+   GET /api/health
+   ```
+
+## 📦 Development
+
+### Prerequisites
+
+- .NET 8 SDK
+- Docker and Docker Compose (for local development with containers)
+- Entity Framework Core tools: `dotnet tool install --global dotnet-ef`
+
+### Local Development
+
+1. Clone the repository
+2. Start the required services (SQL Server, Elasticsearch):
+   ```
+   docker-compose up -d db elasticsearch kibana
+   ```
+3. Run database migrations:
+   ```
+   # Windows
+   ./scripts/RunMigrations.ps1
+   
+   # Linux/macOS
+   ./scripts/RunMigrations.sh
+   ```
+4. Start the API:
+   ```
+   dotnet run --project src/ElasticPersonalization.API
+   ```
 
 ## 📝 License
 
