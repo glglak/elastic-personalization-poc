@@ -1,0 +1,8 @@
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+- jekyll-remote-theme
+title: Elasticsearch Content Personalization POC
+description: A proof of concept in .NET Core 8 for personalizing content feeds based on user interactions with Elasticsearch
+show_downloads: true
+github:
+  repository_url: https://github.com/glglak/elastic-personalization-poc
