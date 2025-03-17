@@ -19,11 +19,9 @@ The system personalizes content based on a hierarchy of user interactions:
 5. **User preferences**
 6. **User interests** (lowest weight)
 
-<div class="arch-diagram-container">
-  <img src="https://raw.githubusercontent.com/glglak/elastic-personalization-poc/main/docs/architecture.svg" alt="Architecture Diagram" />
-</div>
-
 ## Architecture
+
+![Architecture Diagram](./docs/architecture.svg)
 
 The architecture follows a clean, layered approach:
 
@@ -34,9 +32,7 @@ The architecture follows a clean, layered approach:
 
 ## Personalization Flow
 
-<div class="arch-diagram-container">
-  <img src="https://raw.githubusercontent.com/glglak/elastic-personalization-poc/main/docs/personalization-flow.svg" alt="Personalization Flow" />
-</div>
+![Personalization Flow](./docs/personalization-flow.svg)
 
 The personalization algorithm works by:
 
