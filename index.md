@@ -6,22 +6,24 @@ A proof of concept in .NET Core 8 that demonstrates how to implement a personali
 
 This proof of concept demonstrates how to create a personalized content feed by leveraging:
 
-- Elasticsearch for efficient content search and scoring
-- SQL Server for storing user interactions
-- Configurable personalization weights for different user actions
+- **Elasticsearch** for efficient content search and scoring
+- **SQL Server** for storing user interactions
+- **Configurable weights** for different user actions
 
 The system personalizes content based on a hierarchy of user interactions:
 
-1. Share actions (highest weight)
-2. Comment actions 
-3. Like actions
-4. Follow relationships
-5. User preferences
-6. User interests (lowest weight)
+1. **Share actions** (highest weight)
+2. **Comment actions** 
+3. **Like actions**
+4. **Follow relationships**
+5. **User preferences**
+6. **User interests** (lowest weight)
+
+<div class="arch-diagram-container">
+  <img src="https://raw.githubusercontent.com/glglak/elastic-personalization-poc/main/docs/architecture.svg" alt="Architecture Diagram" />
+</div>
 
 ## Architecture
-
-![Architecture Diagram](https://raw.githubusercontent.com/glglak/elastic-personalization-poc/main/docs/architecture.svg)
 
 The architecture follows a clean, layered approach:
 
@@ -32,7 +34,9 @@ The architecture follows a clean, layered approach:
 
 ## Personalization Flow
 
-![Personalization Flow](https://raw.githubusercontent.com/glglak/elastic-personalization-poc/main/docs/personalization-flow.svg)
+<div class="arch-diagram-container">
+  <img src="https://raw.githubusercontent.com/glglak/elastic-personalization-poc/main/docs/personalization-flow.svg" alt="Personalization Flow" />
+</div>
 
 The personalization algorithm works by:
 
@@ -44,12 +48,14 @@ The personalization algorithm works by:
 
 ## Key Features
 
-- Personalized content feed using weighted user interactions
-- Full-text search with Elasticsearch
-- User interaction tracking (shares, likes, comments)
-- User follow relationships
-- User preferences and interests
-- Transparency in personalization (view personalization factors)
+<ul class="feature-list">
+  <li>Personalized content feed using weighted user interactions</li>
+  <li>Full-text search with Elasticsearch</li>
+  <li>User interaction tracking (shares, likes, comments)</li>
+  <li>User follow relationships</li>
+  <li>User preferences and interests</li>
+  <li>Transparency in personalization (view personalization factors)</li>
+</ul>
 
 ## Getting Started
 
@@ -76,41 +82,91 @@ Once complete, you can access:
 - API: http://localhost:5000
 - Kibana: http://localhost:5601
 
-### API Endpoints
+## API Endpoints
 
-#### Content API
+### Content API
 
-- `GET /api/content/{id}` - Get content by ID
-- `POST /api/content` - Create new content
-- `PUT /api/content/{id}` - Update content
-- `DELETE /api/content/{id}` - Delete content
-- `GET /api/content/search?query={query}` - Search content
-- `GET /api/content/category/{category}` - Get content by category
-- `GET /api/content/tag/{tag}` - Get content by tag
-- `GET /api/content/creator/{creatorId}` - Get content by creator
+<div class="api-endpoint">
+  <code>GET /api/content/{id}</code> - Get content by ID
+</div>
 
-#### Personalization API
+<div class="api-endpoint">
+  <code>POST /api/content</code> - Create new content
+</div>
 
-- `GET /api/personalization/feed/{userId}` - Get personalized feed for user
-- `GET /api/personalization/score/{userId}/{contentId}` - Calculate personalization score
-- `GET /api/personalization/factors/{userId}` - Get personalization factors for transparency
+<div class="api-endpoint">
+  <code>PUT /api/content/{id}</code> - Update content
+</div>
 
-#### User Interaction API
+<div class="api-endpoint">
+  <code>DELETE /api/content/{id}</code> - Delete content
+</div>
 
-- `POST /api/userinteraction/share?userId={userId}&contentId={contentId}` - Share content
-- `DELETE /api/userinteraction/share?userId={userId}&contentId={contentId}` - Remove share
-- `POST /api/userinteraction/like?userId={userId}&contentId={contentId}` - Like content
-- `DELETE /api/userinteraction/like?userId={userId}&contentId={contentId}` - Remove like
-- `POST /api/userinteraction/comment?userId={userId}&contentId={contentId}` - Comment on content
-- `DELETE /api/userinteraction/comment/{commentId}` - Remove comment
-- `POST /api/userinteraction/follow?userId={userId}&followedUserId={followedUserId}` - Follow user
-- `DELETE /api/userinteraction/follow?userId={userId}&followedUserId={followedUserId}` - Unfollow user
-- `POST /api/userinteraction/preference?userId={userId}` - Add user preference
-- `DELETE /api/userinteraction/preference?userId={userId}&preference={preference}` - Remove user preference
-- `POST /api/userinteraction/interest?userId={userId}` - Add user interest
-- `DELETE /api/userinteraction/interest?userId={userId}&interest={interest}` - Remove user interest
+<div class="api-endpoint">
+  <code>GET /api/content/search?query={query}</code> - Search content
+</div>
 
-### Personalization Configuration
+<div class="api-endpoint">
+  <code>GET /api/content/category/{category}</code> - Get content by category
+</div>
+
+<div class="api-endpoint">
+  <code>GET /api/content/tag/{tag}</code> - Get content by tag
+</div>
+
+<div class="api-endpoint">
+  <code>GET /api/content/creator/{creatorId}</code> - Get content by creator
+</div>
+
+### Personalization API
+
+<div class="api-endpoint">
+  <code>GET /api/personalization/feed/{userId}</code> - Get personalized feed for user
+</div>
+
+<div class="api-endpoint">
+  <code>GET /api/personalization/score/{userId}/{contentId}</code> - Calculate personalization score
+</div>
+
+<div class="api-endpoint">
+  <code>GET /api/personalization/factors/{userId}</code> - Get personalization factors for transparency
+</div>
+
+### User Interaction API
+
+<div class="api-endpoint">
+  <code>POST /api/userinteraction/share?userId={userId}&contentId={contentId}</code> - Share content
+</div>
+
+<div class="api-endpoint">
+  <code>DELETE /api/userinteraction/share?userId={userId}&contentId={contentId}</code> - Remove share
+</div>
+
+<div class="api-endpoint">
+  <code>POST /api/userinteraction/like?userId={userId}&contentId={contentId}</code> - Like content
+</div>
+
+<div class="api-endpoint">
+  <code>DELETE /api/userinteraction/like?userId={userId}&contentId={contentId}</code> - Remove like
+</div>
+
+<div class="api-endpoint">
+  <code>POST /api/userinteraction/comment?userId={userId}&contentId={contentId}</code> - Comment on content
+</div>
+
+<div class="api-endpoint">
+  <code>DELETE /api/userinteraction/comment/{commentId}</code> - Remove comment
+</div>
+
+<div class="api-endpoint">
+  <code>POST /api/userinteraction/follow?userId={userId}&followedUserId={followedUserId}</code> - Follow user
+</div>
+
+<div class="api-endpoint">
+  <code>DELETE /api/userinteraction/follow?userId={userId}&followedUserId={followedUserId}</code> - Unfollow user
+</div>
+
+## Personalization Configuration
 
 The weights for each factor can be configured in `appsettings.json`:
 
@@ -124,6 +180,48 @@ The weights for each factor can be configured in `appsettings.json`:
   "InterestWeight": 1.5
 }
 ```
+
+<table>
+  <thead>
+    <tr>
+      <th>Interaction Type</th>
+      <th>Weight</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Share</td>
+      <td>5.0</td>
+      <td>Highest weight - strong signal of user interest</td>
+    </tr>
+    <tr>
+      <td>Comment</td>
+      <td>4.0</td>
+      <td>High engagement, indicates significant interest</td>
+    </tr>
+    <tr>
+      <td>Follow</td>
+      <td>4.5</td>
+      <td>Strong connection to content creator</td>
+    </tr>
+    <tr>
+      <td>Like</td>
+      <td>3.0</td>
+      <td>Moderate interest signal</td>
+    </tr>
+    <tr>
+      <td>Preference</td>
+      <td>2.0</td>
+      <td>Explicit user preference (category)</td>
+    </tr>
+    <tr>
+      <td>Interest</td>
+      <td>1.5</td>
+      <td>Explicit user interest (tag)</td>
+    </tr>
+  </tbody>
+</table>
 
 ## Project Structure
 
