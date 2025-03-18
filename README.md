@@ -34,7 +34,60 @@ The architecture follows a clean, layered approach:
 
 ## 🚀 Getting Started
 
-The easiest way to get started is using Docker Compose:
+### Using Docker for Desktop on Windows
+
+1. **Prerequisites**:
+   - [Docker for Desktop](https://www.docker.com/products/docker-desktop/) installed on Windows
+   - [Git](https://git-scm.com/downloads) for cloning the repository
+
+2. **Clone the repository**:
+   ```powershell
+   git clone https://github.com/glglak/elastic-personalization-poc.git
+   cd elastic-personalization-poc
+   ```
+
+3. **Build and run with Docker for Desktop**:
+   ```powershell
+   # Build the Docker images
+   docker build -t elastic-personalization-api .
+   
+   # Create a Docker network for the containers
+   docker network create elastic-personalization-network
+   
+   # Start SQL Server
+   docker run -d --name sqlserver --network elastic-personalization-network -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourStrongPassword!" -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+   
+   # Start Elasticsearch
+   docker run -d --name elasticsearch --network elastic-personalization-network -e "discovery.type=single-node" -e "xpack.security.enabled=false" -p 9200:9200 -p 9300:9300 docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+   
+   # Start Kibana
+   docker run -d --name kibana --network elastic-personalization-network -e "ELASTICSEARCH_HOSTS=http://elasticsearch:9200" -p 5601:5601 docker.elastic.co/kibana/kibana:7.17.10
+   
+   # Wait a bit for the databases to initialize
+   Start-Sleep -Seconds 30
+   
+   # Start the API with connection to the other services
+   docker run -d --name api --network elastic-personalization-network -e "ConnectionStrings__ContentActionsConnection=Server=sqlserver;Database=ContentActions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;" -e "ElasticsearchSettings__Url=http://elasticsearch:9200" -p 5000:80 elastic-personalization-api
+   ```
+
+4. **Initialize the database and Elasticsearch**:
+   ```powershell
+   # Copy the initialization scripts into the SQL Server container
+   docker cp scripts/InitializeDB.sql sqlserver:/var/opt/mssql/
+   
+   # Run the SQL initialization script
+   docker exec -it sqlserver /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrongPassword! -i /var/opt/mssql/InitializeDB.sql
+   
+   # Initialize Elasticsearch
+   docker cp scripts/InitializeElasticsearch.js api:/app/
+   docker exec -it api node /app/InitializeElasticsearch.js http://elasticsearch:9200 content
+   ```
+
+5. **Access the services**:
+   - API: http://localhost:5000
+   - Kibana: http://localhost:5601
+
+### Using Docker Compose (Alternative)
 
 ```bash
 # Clone the repository
@@ -42,18 +95,15 @@ git clone https://github.com/glglak/elastic-personalization-poc.git
 cd elastic-personalization-poc
 
 # Start the services and initialize the environment
-chmod +x scripts/setup.sh
-./scripts/setup.sh
+docker-compose up -d
+
+# Initialize the database (Windows)
+./scripts/RunMigrations.ps1
+
+# OR initialize the database (Linux/macOS)
+chmod +x scripts/RunMigrations.sh
+./scripts/RunMigrations.sh
 ```
-
-The script will:
-1. Start SQL Server, Elasticsearch, Kibana, and the API
-2. Initialize the SQL Server database with sample data
-3. Create and populate the Elasticsearch index
-
-Once complete, you can access:
-- API: http://localhost:5000
-- Kibana: http://localhost:5601
 
 ### Health Monitoring
 
@@ -64,26 +114,6 @@ GET /api/health
 ```
 
 This endpoint returns detailed information about the health of each component and can be used for monitoring.
-
-### Manual Database Setup
-
-If you need to manually set up or refresh the database, use the provided scripts:
-
-**Windows (PowerShell):**
-```powershell
-./scripts/RunMigrations.ps1
-```
-
-**Linux/macOS:**
-```bash
-chmod +x scripts/RunMigrations.sh
-./scripts/RunMigrations.sh
-```
-
-These scripts will:
-1. Apply all Entity Framework migrations to create the database schema
-2. Seed the database with sample data
-3. Create and populate the Elasticsearch index
 
 ## 🔧 Project Structure
 
