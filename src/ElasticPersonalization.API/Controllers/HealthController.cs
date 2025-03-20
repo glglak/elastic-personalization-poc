@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using ElasticPersonalization.API.Models;
 using ElasticPersonalization.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -34,13 +35,12 @@ namespace ElasticPersonalization.API.Controllers
         {
             try
             {
-                var result = new
+                var result = new HealthCheckResponse
                 {
-                    Status = "Healthy",
                     Timestamp = DateTime.UtcNow,
-                    Components = new
+                    Components = new ComponentsStatus
                     {
-                        Api = new { Status = "Healthy" },
+                        Api = new ComponentStatus { Status = "Healthy" },
                         Database = await CheckDatabaseHealthAsync(),
                         Elasticsearch = await CheckElasticsearchHealthAsync()
                     }
@@ -49,6 +49,7 @@ namespace ElasticPersonalization.API.Controllers
                 if (result.Components.Database.Status != "Healthy" || 
                     result.Components.Elasticsearch.Status != "Healthy")
                 {
+                    result.Status = "Unhealthy";
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
 
@@ -57,16 +58,23 @@ namespace ElasticPersonalization.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking health status");
-                return StatusCode(StatusCodes.Status500InternalServerError, new
+                return StatusCode(StatusCodes.Status500InternalServerError, new HealthCheckResponse
                 {
                     Status = "Unhealthy",
                     Timestamp = DateTime.UtcNow,
-                    Error = ex.Message
+                    Components = new ComponentsStatus
+                    {
+                        Api = new ComponentStatus 
+                        { 
+                            Status = "Unhealthy",
+                            Message = ex.Message
+                        }
+                    }
                 });
             }
         }
 
-        private async Task<object> CheckDatabaseHealthAsync()
+        private async Task<ComponentStatus> CheckDatabaseHealthAsync()
         {
             try
             {
@@ -75,14 +83,14 @@ namespace ElasticPersonalization.API.Controllers
                 
                 if (!canConnect)
                 {
-                    return new
+                    return new ComponentStatus
                     {
                         Status = "Unhealthy",
                         Message = "Cannot connect to database"
                     };
                 }
 
-                return new
+                return new ComponentStatus
                 {
                     Status = "Healthy",
                     Message = "Database connection successful"
@@ -91,7 +99,7 @@ namespace ElasticPersonalization.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Database health check failed");
-                return new
+                return new ComponentStatus
                 {
                     Status = "Unhealthy",
                     Message = $"Database health check failed: {ex.Message}"
@@ -99,7 +107,7 @@ namespace ElasticPersonalization.API.Controllers
             }
         }
 
-        private async Task<object> CheckElasticsearchHealthAsync()
+        private async Task<ComponentStatus> CheckElasticsearchHealthAsync()
         {
             try
             {
@@ -108,14 +116,14 @@ namespace ElasticPersonalization.API.Controllers
                 
                 if (!healthResponse.IsValid)
                 {
-                    return new
+                    return new ComponentStatus
                     {
                         Status = "Unhealthy",
                         Message = $"Elasticsearch health check failed: {healthResponse.DebugInformation}"
                     };
                 }
 
-                return new
+                return new ComponentStatus
                 {
                     Status = "Healthy",
                     Message = $"Elasticsearch status: {healthResponse.Status}",
@@ -126,7 +134,7 @@ namespace ElasticPersonalization.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Elasticsearch health check failed");
-                return new
+                return new ComponentStatus
                 {
                     Status = "Unhealthy",
                     Message = $"Elasticsearch health check failed: {ex.Message}"
