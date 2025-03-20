@@ -103,12 +103,15 @@ namespace ElasticPersonalization.Infrastructure.Services
                 var contentDtos = new List<ContentDto>();
                 foreach (var content in orderedContent)
                 {
-                    var dto = MapToContentDto(content);
-                    
-                    // Calculate personalization score for transparency
-                    dto.PersonalizationScore = await CalculatePersonalizationScoreAsync(userId, content.Id);
-                    
-                    contentDtos.Add(dto);
+                    if (content != null)
+                    {
+                        var dto = MapToContentDto(content);
+                        
+                        // Calculate personalization score for transparency
+                        dto.PersonalizationScore = await CalculatePersonalizationScoreAsync(userId, content.Id);
+                        
+                        contentDtos.Add(dto);
+                    }
                 }
 
                 return contentDtos;
@@ -405,28 +408,30 @@ namespace ElasticPersonalization.Infrastructure.Services
             // Boost content matching user preferences
             if (factors.ActivePreferences.Any())
             {
-                functions.Add(new FunctionScoreQuery
+                // Use ScriptScoreFunction instead of FunctionScoreQuery
+                functions.Add(new ScriptScoreFunction
                 {
-                    Query = new TermsQuery
+                    Script = new InlineScript($"return {factors.PreferenceFactor / Math.Max(1, factors.ActivePreferences.Count())}"),
+                    Filter = new TermsQuery
                     {
                         Field = Infer.Field<Content>(c => c.Categories),
                         Terms = factors.ActivePreferences
-                    },
-                    Weight = factors.PreferenceFactor / Math.Max(1, factors.ActivePreferences.Count())
+                    }
                 });
             }
 
             // Boost content matching user interests
             if (factors.ActiveInterests.Any())
             {
-                functions.Add(new FunctionScoreQuery
+                // Use ScriptScoreFunction instead of FunctionScoreQuery
+                functions.Add(new ScriptScoreFunction
                 {
-                    Query = new TermsQuery
+                    Script = new InlineScript($"return {factors.InterestFactor / Math.Max(1, factors.ActiveInterests.Count())}"),
+                    Filter = new TermsQuery
                     {
                         Field = Infer.Field<Content>(c => c.Tags),
                         Terms = factors.ActiveInterests
-                    },
-                    Weight = factors.InterestFactor / Math.Max(1, factors.ActiveInterests.Count())
+                    }
                 });
             }
 
