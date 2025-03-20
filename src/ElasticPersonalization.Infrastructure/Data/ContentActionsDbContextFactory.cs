@@ -14,7 +14,7 @@ namespace ElasticPersonalization.Infrastructure.Data
             string environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
 
             // Build configuration
-            IConfigurationRoot configuration = new ConfigurationBuilder()
+            IConfigurationRoot configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: false)
                 .AddJsonFile($"appsettings.{environment}.json", optional: true)

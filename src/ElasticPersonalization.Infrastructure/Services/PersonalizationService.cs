@@ -442,7 +442,8 @@ namespace ElasticPersonalization.Infrastructure.Services
                 Origin = DateTime.UtcNow,
                 Scale = "7d", // 7 days
                 Decay = 0.5,
-                Weight = 1.0
+                // Remove Weight property as it's not supported in this version of NEST
+                // Weight = 1.0
             });
 
             return functions;
