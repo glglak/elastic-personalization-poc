@@ -37,10 +37,8 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
-                // Get user data including preferences, interests, and interactions
+                // Get user data including interactions - remove invalid includes for Preferences and Interests
                 var user = await _dbContext.Users
-                    .Include(u => u.Preferences)
-                    .Include(u => u.Interests)
                     .Include(u => u.Shares)
                     .Include(u => u.Likes)
                     .Include(u => u.Comments)
@@ -127,10 +125,8 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
-                // Get user data
+                // Get user data - remove invalid includes for Preferences and Interests
                 var user = await _dbContext.Users
-                    .Include(u => u.Preferences)
-                    .Include(u => u.Interests)
                     .Include(u => u.Shares.Where(s => s.ContentId == contentId))
                     .Include(u => u.Likes.Where(l => l.ContentId == contentId))
                     .Include(u => u.Comments.Where(c => c.ContentId == contentId))
@@ -207,10 +203,8 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
-                // Get user with all relevant data
+                // Get user with all relevant data - remove invalid includes for Preferences and Interests
                 var user = await _dbContext.Users
-                    .Include(u => u.Preferences)
-                    .Include(u => u.Interests)
                     .Include(u => u.Shares)
                     .Include(u => u.Likes)
                     .Include(u => u.Comments)
