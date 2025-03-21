@@ -16,7 +16,8 @@ namespace ElasticPersonalization.Core.Entities
     // User Share interaction
     public class UserShare : UserInteraction
     {
-        public string ContentId { get; set; } = string.Empty;
+        // Changed from string to int to match Content.Id type
+        public int ContentId { get; set; }
         
         // Navigation property
         public virtual Content Content { get; set; } = null!;
@@ -25,7 +26,8 @@ namespace ElasticPersonalization.Core.Entities
     // User Like interaction
     public class UserLike : UserInteraction
     {
-        public string ContentId { get; set; } = string.Empty;
+        // Changed from string to int to match Content.Id type
+        public int ContentId { get; set; }
         
         // Navigation property
         public virtual Content Content { get; set; } = null!;
@@ -34,7 +36,8 @@ namespace ElasticPersonalization.Core.Entities
     // User Comment interaction
     public class UserComment : UserInteraction
     {
-        public string ContentId { get; set; } = string.Empty;
+        // Changed from string to int to match Content.Id type
+        public int ContentId { get; set; }
         public string CommentText { get; set; } = string.Empty;
         
         // Navigation property
