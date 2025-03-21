@@ -104,7 +104,29 @@ namespace ElasticPersonalization.API.Data
             }
             
             // Add interactions if they don't exist
-            if (!dbContext.Likes.Any())
+            // Check which navigation property we're using for user interactions
+            var interactionTypes = new[] { "Likes", "Comments", "Shares", "Follows" };
+            
+            bool needsInteractions = true;
+            foreach (var type in interactionTypes)
+            {
+                // Use reflection to check if any interactions exist
+                var property = typeof(ContentActionsDbContext).GetProperty(type);
+                if (property != null)
+                {
+                    var dbSet = property.GetValue(dbContext);
+                    var anyMethod = dbSet.GetType().GetMethod("Any", new Type[0]);
+                    bool hasData = (bool)anyMethod.Invoke(dbSet, null);
+                    
+                    if (hasData)
+                    {
+                        needsInteractions = false;
+                        break;
+                    }
+                }
+            }
+            
+            if (needsInteractions)
             {
                 logger.LogInformation("Adding sample interactions...");
                 
@@ -116,16 +138,16 @@ namespace ElasticPersonalization.API.Data
                     // Add likes
                     var likes = new List<UserLike>
                     {
-                        new UserLike { UserId = users[0].Id, ContentId = contentItems[0].Id },
-                        new UserLike { UserId = users[1].Id, ContentId = contentItems[1].Id }
+                        new UserLike { UserId = users[0].Id, ContentId = contentItems[0].Id.ToString() },
+                        new UserLike { UserId = users[1].Id, ContentId = contentItems[1].Id.ToString() }
                     };
                     dbContext.Likes.AddRange(likes);
                     
                     // Add comments
                     var comments = new List<UserComment>
                     {
-                        new UserComment { UserId = users[0].Id, ContentId = contentItems[0].Id, CommentText = "Great introduction!" },
-                        new UserComment { UserId = users[1].Id, ContentId = contentItems[1].Id, CommentText = "Very informative content." }
+                        new UserComment { UserId = users[0].Id, ContentId = contentItems[0].Id.ToString(), CommentText = "Great introduction!" },
+                        new UserComment { UserId = users[1].Id, ContentId = contentItems[1].Id.ToString(), CommentText = "Very informative content." }
                     };
                     dbContext.Comments.AddRange(comments);
                     
