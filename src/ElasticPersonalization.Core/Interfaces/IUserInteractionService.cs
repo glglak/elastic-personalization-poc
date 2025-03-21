@@ -5,13 +5,13 @@ namespace ElasticPersonalization.Core.Interfaces
 {
     public interface IUserInteractionService
     {
-        Task<UserShare> ShareContentAsync(int userId, string contentId);
-        Task<UserLike> LikeContentAsync(int userId, string contentId);
-        Task<UserComment> CommentOnContentAsync(int userId, string contentId, string commentText);
+        Task<UserShare> ShareContentAsync(int userId, int contentId);
+        Task<UserLike> LikeContentAsync(int userId, int contentId);
+        Task<UserComment> CommentOnContentAsync(int userId, int contentId, string commentText);
         Task<UserFollow> FollowUserAsync(int userId, int followedUserId);
         
-        Task RemoveShareAsync(int userId, string contentId);
-        Task RemoveLikeAsync(int userId, string contentId);
+        Task RemoveShareAsync(int userId, int contentId);
+        Task RemoveLikeAsync(int userId, int contentId);
         Task RemoveCommentAsync(int commentId);
         Task UnfollowUserAsync(int userId, int followedUserId);
         
