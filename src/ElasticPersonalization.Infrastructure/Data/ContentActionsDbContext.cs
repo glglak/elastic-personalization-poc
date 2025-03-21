@@ -76,6 +76,12 @@ namespace ElasticPersonalization.Infrastructure.Data
                 entity.Property(c => c.Title)
                     .IsRequired()
                     .HasMaxLength(200);
+
+                // Configure relationship with Creator (User)
+                entity.HasOne(c => c.Creator)
+                    .WithMany()
+                    .HasForeignKey(c => c.CreatorId)
+                    .OnDelete(DeleteBehavior.Restrict);
                 
                 entity.HasMany(c => c.Shares)
                     .WithOne(s => s.Content)
