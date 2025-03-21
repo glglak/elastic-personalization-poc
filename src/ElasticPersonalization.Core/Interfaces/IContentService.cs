@@ -8,10 +8,10 @@ namespace ElasticPersonalization.Core.Interfaces
     public interface IContentService
     {
         // CRUD operations
-        Task<ContentDto> GetContentAsync(string contentId);
+        Task<ContentDto> GetContentAsync(int contentId);
         Task<ContentDto> CreateContentAsync(CreateContentDto contentDto);
-        Task<ContentDto> UpdateContentAsync(string contentId, UpdateContentDto contentDto);
-        Task DeleteContentAsync(string contentId);
+        Task<ContentDto> UpdateContentAsync(int contentId, UpdateContentDto contentDto);
+        Task DeleteContentAsync(int contentId);
         
         // Search operations
         Task<List<ContentDto>> SearchContentAsync(string query, int page = 1, int pageSize = 20);
@@ -21,6 +21,6 @@ namespace ElasticPersonalization.Core.Interfaces
         
         // Synchronization with Elasticsearch
         Task SyncContentToElasticsearchAsync(Content content);
-        Task RemoveContentFromElasticsearchAsync(string contentId);
+        Task RemoveContentFromElasticsearchAsync(int contentId);
     }
 }
