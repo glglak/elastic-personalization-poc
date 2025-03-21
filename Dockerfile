@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
-EXPOSE 80
+EXPOSE 8080
 EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
@@ -50,7 +50,10 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Create appsettings files with default values
-RUN echo '{"Logging":{"LogLevel":{"Default":"Information","Microsoft.AspNetCore":"Warning"}},"AllowedHosts":"*","ConnectionStrings":{"ContentActionsConnection":"Server=db;Database=ContentActions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;"},"ElasticsearchSettings":{"Url":"http://elasticsearch:9200","DefaultIndex":"content","Username":"elastic","Password":"changeme"},"PersonalizationWeights":{"ShareWeight":5.0,"CommentWeight":4.0,"LikeWeight":3.0,"FollowWeight":4.5,"PreferenceWeight":2.0,"InterestWeight":1.5}}' > appsettings.json
+RUN echo '{"Logging":{"LogLevel":{"Default":"Information","Microsoft.AspNetCore":"Warning"}},"AllowedHosts":"*","ConnectionStrings":{"ContentActionsConnection":"Server=sqlserver;Database=ContentActions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;"},"ElasticsearchSettings":{"Url":"http://elasticsearch:9200","DefaultIndex":"content","Username":"elastic","Password":"changeme"},"PersonalizationWeights":{"ShareWeight":5.0,"CommentWeight":4.0,"LikeWeight":3.0,"FollowWeight":4.5,"PreferenceWeight":2.0,"InterestWeight":1.5}}' > appsettings.json
 RUN echo '{"Logging":{"LogLevel":{"Default":"Information","Microsoft.AspNetCore":"Warning"}}}' > appsettings.Development.json
+
+# Configure ASP.NET Core to listen on port 8080
+ENV ASPNETCORE_URLS=http://+:8080
 
 ENTRYPOINT ["dotnet", "ElasticPersonalization.API.dll"]
