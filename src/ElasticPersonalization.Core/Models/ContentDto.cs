@@ -5,7 +5,7 @@ namespace ElasticPersonalization.Core.Models
 {
     public class ContentDto
     {
-        public string Id { get; set; } = string.Empty;
+        public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Body { get; set; } = string.Empty;
