@@ -15,7 +15,7 @@ namespace ElasticPersonalization.Core.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         
-        // Navigation properties
+        // Navigation properties - these are now handled by the UserInteraction base class
         public virtual ICollection<UserShare> Shares { get; set; } = new List<UserShare>();
         public virtual ICollection<UserLike> Likes { get; set; } = new List<UserLike>();
         public virtual ICollection<UserComment> Comments { get; set; } = new List<UserComment>();
