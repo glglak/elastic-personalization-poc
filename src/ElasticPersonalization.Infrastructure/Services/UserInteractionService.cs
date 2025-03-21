@@ -20,7 +20,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<UserShare> ShareContentAsync(int userId, string contentId)
+        public async Task<UserShare> ShareContentAsync(int userId, int contentId)
         {
             try
             {
@@ -57,7 +57,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             }
         }
 
-        public async Task<UserLike> LikeContentAsync(int userId, string contentId)
+        public async Task<UserLike> LikeContentAsync(int userId, int contentId)
         {
             try
             {
@@ -94,7 +94,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             }
         }
 
-        public async Task<UserComment> CommentOnContentAsync(int userId, string contentId, string commentText)
+        public async Task<UserComment> CommentOnContentAsync(int userId, int contentId, string commentText)
         {
             try
             {
@@ -166,7 +166,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             }
         }
 
-        public async Task RemoveShareAsync(int userId, string contentId)
+        public async Task RemoveShareAsync(int userId, int contentId)
         {
             try
             {
@@ -186,7 +186,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             }
         }
 
-        public async Task RemoveLikeAsync(int userId, string contentId)
+        public async Task RemoveLikeAsync(int userId, int contentId)
         {
             try
             {
@@ -359,7 +359,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             }
         }
 
-        private async Task EnsureContentExistsAsync(string contentId)
+        private async Task EnsureContentExistsAsync(int contentId)
         {
             var content = await _dbContext.Content.FindAsync(contentId);
             if (content == null)
