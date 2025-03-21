@@ -1,6 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using ElasticPersonalization.Core.Entities;
 using ElasticPersonalization.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace ElasticPersonalization.API.Data
@@ -11,80 +15,131 @@ namespace ElasticPersonalization.API.Data
         {
             try
             {
-                var context = serviceProvider.GetRequiredService<ContentActionsDbContext>();
+                logger.LogInformation("Starting database initialization...");
                 
-                // Ensure database is created
-                context.Database.EnsureCreated();
+                // Get the database context
+                using var dbContext = serviceProvider.GetRequiredService<ContentActionsDbContext>();
                 
-                // Add seed data if the database is empty
-                SeedData(context, logger);
+                // Check if the database exists, and create it if it doesn't
+                logger.LogInformation("Ensuring database exists...");
+                dbContext.Database.EnsureCreated();
                 
-                logger.LogInformation("Database initialization completed successfully");
+                // Add sample data if the tables are empty
+                AddSampleData(dbContext, logger);
+                
+                logger.LogInformation("Database initialization completed successfully.");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "An error occurred while initializing the database");
+                logger.LogError(ex, "An error occurred while initializing the database.");
+                throw; // Re-throw to ensure application fails on startup if DB init fails
             }
         }
         
-        private static void SeedData(ContentActionsDbContext context, ILogger logger)
+        private static void AddSampleData(ContentActionsDbContext dbContext, ILogger logger)
         {
-            // Check if data already exists
-            if (context.Users.Any())
+            // Check if there's already data
+            if (dbContext.Users.Any() && dbContext.Content.Any())
             {
-                logger.LogInformation("Database already contains data, skipping seed");
+                logger.LogInformation("Database already contains data, skipping sample data creation.");
                 return;
             }
             
-            logger.LogInformation("Seeding database with initial data");
+            logger.LogInformation("Adding sample data...");
             
-            // Add sample users
-            var users = new List<User>
+            // Add users if they don't exist
+            if (!dbContext.Users.Any())
             {
-                new User
+                logger.LogInformation("Adding sample users...");
+                var users = new List<User>
                 {
-                    Username = "user1",
-                    Email = "user1@example.com",
-                    Preferences = new List<string> { "tech", "news" },
-                    Interests = new List<string> { "AI", "programming" }
-                },
-                new User
-                {
-                    Username = "user2",
-                    Email = "user2@example.com",
-                    Preferences = new List<string> { "sports", "entertainment" },
-                    Interests = new List<string> { "football", "movies" }
-                }
-            };
+                    new User
+                    {
+                        Username = "user1",
+                        Email = "user1@example.com",
+                        Preferences = new List<string> { "tech", "news" },
+                        Interests = new List<string> { "AI", "programming" }
+                    },
+                    new User
+                    {
+                        Username = "user2",
+                        Email = "user2@example.com",
+                        Preferences = new List<string> { "sports", "entertainment" },
+                        Interests = new List<string> { "football", "movies" }
+                    }
+                };
+                
+                dbContext.Users.AddRange(users);
+                dbContext.SaveChanges();
+                logger.LogInformation("Added {Count} sample users.", users.Count);
+            }
             
-            context.Users.AddRange(users);
-            context.SaveChanges();
-            
-            // Add sample content
-            var contents = new List<Content>
+            // Add content if it doesn't exist
+            if (!dbContext.Content.Any())
             {
-                new Content
+                logger.LogInformation("Adding sample content...");
+                var contentItems = new List<Content>
                 {
-                    Title = "Introduction to Elasticsearch",
-                    Description = "Learn the basics of Elasticsearch",
-                    ContentType = "article",
-                    Categories = new List<string> { "tech", "tutorial" },
-                    Tags = new List<string> { "elasticsearch", "search", "database" }
-                },
-                new Content
+                    new Content
+                    {
+                        Title = "Introduction to Elasticsearch",
+                        Description = "Learn the basics of Elasticsearch",
+                        ContentType = "article",
+                        Categories = new List<string> { "tech", "tutorial" },
+                        Tags = new List<string> { "elasticsearch", "search", "database" }
+                    },
+                    new Content
+                    {
+                        Title = "Machine Learning Trends",
+                        Description = "Latest trends in ML",
+                        ContentType = "article",
+                        Categories = new List<string> { "tech", "ai" },
+                        Tags = new List<string> { "machine learning", "ai", "trends" }
+                    }
+                };
+                
+                dbContext.Content.AddRange(contentItems);
+                dbContext.SaveChanges();
+                logger.LogInformation("Added {Count} sample content items.", contentItems.Count);
+            }
+            
+            // Add interactions if they don't exist
+            if (!dbContext.Likes.Any())
+            {
+                logger.LogInformation("Adding sample interactions...");
+                
+                var users = dbContext.Users.ToList();
+                var contentItems = dbContext.Content.ToList();
+                
+                if (users.Count >= 2 && contentItems.Count >= 2)
                 {
-                    Title = "Machine Learning Trends",
-                    Description = "Latest trends in ML",
-                    ContentType = "article",
-                    Categories = new List<string> { "tech", "ai" },
-                    Tags = new List<string> { "machine learning", "ai", "trends" }
+                    // Add likes
+                    var likes = new List<UserLike>
+                    {
+                        new UserLike { UserId = users[0].Id, ContentId = contentItems[0].Id },
+                        new UserLike { UserId = users[1].Id, ContentId = contentItems[1].Id }
+                    };
+                    dbContext.Likes.AddRange(likes);
+                    
+                    // Add comments
+                    var comments = new List<UserComment>
+                    {
+                        new UserComment { UserId = users[0].Id, ContentId = contentItems[0].Id, CommentText = "Great introduction!" },
+                        new UserComment { UserId = users[1].Id, ContentId = contentItems[1].Id, CommentText = "Very informative content." }
+                    };
+                    dbContext.Comments.AddRange(comments);
+                    
+                    // Add follows
+                    var follows = new List<UserFollow>
+                    {
+                        new UserFollow { UserId = users[0].Id, FollowedUserId = users[1].Id },
+                    };
+                    dbContext.Follows.AddRange(follows);
+                    
+                    dbContext.SaveChanges();
+                    logger.LogInformation("Added sample interactions.");
                 }
-            };
-            
-            context.Content.AddRange(contents);
-            context.SaveChanges();
-            
-            logger.LogInformation("Added {UserCount} users and {ContentCount} content items", users.Count, contents.Count);
+            }
         }
     }
 }
