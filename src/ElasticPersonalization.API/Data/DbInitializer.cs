@@ -78,55 +78,45 @@ namespace ElasticPersonalization.API.Data
             if (!dbContext.Content.Any())
             {
                 logger.LogInformation("Adding sample content...");
-                var contentItems = new List<Content>
-                {
-                    new Content
-                    {
-                        Title = "Introduction to Elasticsearch",
-                        Description = "Learn the basics of Elasticsearch",
-                        ContentType = "article",
-                        Categories = new List<string> { "tech", "tutorial" },
-                        Tags = new List<string> { "elasticsearch", "search", "database" }
-                    },
-                    new Content
-                    {
-                        Title = "Machine Learning Trends",
-                        Description = "Latest trends in ML",
-                        ContentType = "article",
-                        Categories = new List<string> { "tech", "ai" },
-                        Tags = new List<string> { "machine learning", "ai", "trends" }
-                    }
-                };
                 
-                dbContext.Content.AddRange(contentItems);
-                dbContext.SaveChanges();
-                logger.LogInformation("Added {Count} sample content items.", contentItems.Count);
-            }
-            
-            // Add interactions if they don't exist
-            // Check which navigation property we're using for user interactions
-            var interactionTypes = new[] { "Likes", "Comments", "Shares", "Follows" };
-            
-            bool needsInteractions = true;
-            foreach (var type in interactionTypes)
-            {
-                // Use reflection to check if any interactions exist
-                var property = typeof(ContentActionsDbContext).GetProperty(type);
-                if (property != null)
+                // Get users for content creator references
+                var users = dbContext.Users.ToList();
+                if (users.Count > 0)
                 {
-                    var dbSet = property.GetValue(dbContext);
-                    var anyMethod = dbSet.GetType().GetMethod("Any", new Type[0]);
-                    bool hasData = (bool)anyMethod.Invoke(dbSet, null);
-                    
-                    if (hasData)
+                    var contentItems = new List<Content>
                     {
-                        needsInteractions = false;
-                        break;
-                    }
+                        new Content
+                        {
+                            Title = "Introduction to Elasticsearch",
+                            Description = "Learn the basics of Elasticsearch",
+                            Body = "Elasticsearch is a powerful search and analytics engine that makes data easy to search and analyze in real-time.",
+                            ContentText = "Elasticsearch is a powerful search and analytics engine that makes data easy to search and analyze in real-time.",
+                            ContentType = "article",
+                            Categories = new List<string> { "tech", "tutorial" },
+                            Tags = new List<string> { "elasticsearch", "search", "database" },
+                            CreatorId = users[0].Id,
+                        },
+                        new Content
+                        {
+                            Title = "Machine Learning Trends",
+                            Description = "Latest trends in ML",
+                            Body = "Machine learning is advancing rapidly with new models and techniques being developed every day.",
+                            ContentText = "Machine learning is advancing rapidly with new models and techniques being developed every day.",
+                            ContentType = "article",
+                            Categories = new List<string> { "tech", "ai" },
+                            Tags = new List<string> { "machine learning", "ai", "trends" },
+                            CreatorId = users[1].Id,
+                        }
+                    };
+                    
+                    dbContext.Content.AddRange(contentItems);
+                    dbContext.SaveChanges();
+                    logger.LogInformation("Added {Count} sample content items.", contentItems.Count);
                 }
             }
             
-            if (needsInteractions)
+            // Add interactions if they don't exist
+            if (!dbContext.Likes.Any() && !dbContext.Comments.Any() && !dbContext.Shares.Any() && !dbContext.Follows.Any())
             {
                 logger.LogInformation("Adding sample interactions...");
                 
@@ -138,16 +128,16 @@ namespace ElasticPersonalization.API.Data
                     // Add likes
                     var likes = new List<UserLike>
                     {
-                        new UserLike { UserId = users[0].Id, ContentId = contentItems[0].Id.ToString() },
-                        new UserLike { UserId = users[1].Id, ContentId = contentItems[1].Id.ToString() }
+                        new UserLike { UserId = users[0].Id, ContentId = contentItems[0].Id },
+                        new UserLike { UserId = users[1].Id, ContentId = contentItems[1].Id }
                     };
                     dbContext.Likes.AddRange(likes);
                     
                     // Add comments
                     var comments = new List<UserComment>
                     {
-                        new UserComment { UserId = users[0].Id, ContentId = contentItems[0].Id.ToString(), CommentText = "Great introduction!" },
-                        new UserComment { UserId = users[1].Id, ContentId = contentItems[1].Id.ToString(), CommentText = "Very informative content." }
+                        new UserComment { UserId = users[0].Id, ContentId = contentItems[0].Id, CommentText = "Great introduction!" },
+                        new UserComment { UserId = users[1].Id, ContentId = contentItems[1].Id, CommentText = "Very informative content." }
                     };
                     dbContext.Comments.AddRange(comments);
                     
