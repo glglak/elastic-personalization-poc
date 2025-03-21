@@ -129,7 +129,7 @@ namespace ElasticPersonalization.Infrastructure.Data
                 {
                     new Content
                     {
-                        Id = "1",
+                        // Use int instead of string for Id
                         Title = "Introduction to Elasticsearch",
                         Description = "Learn the basics of Elasticsearch",
                         Body = "Elasticsearch is a distributed, RESTful search and analytics engine capable of addressing a growing number of use cases. As the heart of the Elastic Stack, it centrally stores your data for lightning-fast search, relevance, and powerful analytics.",
@@ -140,7 +140,7 @@ namespace ElasticPersonalization.Infrastructure.Data
                     },
                     new Content
                     {
-                        Id = "2",
+                        // Use int instead of string for Id
                         Title = "Advanced .NET Core Development",
                         Description = "Take your .NET skills to the next level",
                         Body = "In this article, we explore advanced concepts in .NET Core development including dependency injection, middleware, and microservices architecture. We'll also cover best practices for performance optimization and application security.",
@@ -151,7 +151,7 @@ namespace ElasticPersonalization.Infrastructure.Data
                     },
                     new Content
                     {
-                        Id = "3",
+                        // Use int instead of string for Id
                         Title = "Building Personalized Content Feeds",
                         Description = "Learn how to create personalized experiences",
                         Body = "Personalization is key to user engagement. This article explains how to build personalized content feeds using a combination of user preferences, interests, and interaction history. We'll demonstrate practical examples using Elasticsearch and SQL Server.",
@@ -162,7 +162,7 @@ namespace ElasticPersonalization.Infrastructure.Data
                     },
                     new Content
                     {
-                        Id = "4",
+                        // Use int instead of string for Id
                         Title = "SQL Server Performance Tuning",
                         Description = "Optimize your database queries",
                         Body = "This guide covers essential techniques for SQL Server optimization including index management, query analysis, and execution plans. Learn how to improve database performance and reduce resource usage through practical examples and case studies.",
@@ -173,7 +173,7 @@ namespace ElasticPersonalization.Infrastructure.Data
                     },
                     new Content
                     {
-                        Id = "5",
+                        // Use int instead of string for Id
                         Title = "Getting Started with Docker",
                         Description = "Containerize your applications",
                         Body = "Docker is a platform for developing, shipping, and running applications in containers. This beginner-friendly guide will take you through the basics of Docker, including containers, images, and Docker Compose for multi-container applications.",
@@ -211,46 +211,56 @@ namespace ElasticPersonalization.Infrastructure.Data
                     new UserFollow { UserId = 5, FollowedUserId = 2, CreatedAt = DateTime.UtcNow }
                 };
                 
-                // Sample likes
-                var likes = new[]
+                // Get content IDs from the database
+                var contentIds = await _dbContext.Content.Select(c => c.Id).ToListAsync();
+                
+                if (contentIds.Count >= 5)
                 {
-                    new UserLike { UserId = 1, ContentId = "2", CreatedAt = DateTime.UtcNow },
-                    new UserLike { UserId = 1, ContentId = "4", CreatedAt = DateTime.UtcNow },
-                    new UserLike { UserId = 2, ContentId = "1", CreatedAt = DateTime.UtcNow },
-                    new UserLike { UserId = 2, ContentId = "3", CreatedAt = DateTime.UtcNow },
-                    new UserLike { UserId = 3, ContentId = "1", CreatedAt = DateTime.UtcNow },
-                    new UserLike { UserId = 3, ContentId = "5", CreatedAt = DateTime.UtcNow },
-                    new UserLike { UserId = 4, ContentId = "3", CreatedAt = DateTime.UtcNow },
-                    new UserLike { UserId = 5, ContentId = "2", CreatedAt = DateTime.UtcNow },
-                    new UserLike { UserId = 5, ContentId = "5", CreatedAt = DateTime.UtcNow }
-                };
-                
-                // Sample comments
-                var comments = new[]
+                    // Sample likes
+                    var likes = new[]
+                    {
+                        new UserLike { UserId = 1, ContentId = contentIds[1], CreatedAt = DateTime.UtcNow },
+                        new UserLike { UserId = 1, ContentId = contentIds[3], CreatedAt = DateTime.UtcNow },
+                        new UserLike { UserId = 2, ContentId = contentIds[0], CreatedAt = DateTime.UtcNow },
+                        new UserLike { UserId = 2, ContentId = contentIds[2], CreatedAt = DateTime.UtcNow },
+                        new UserLike { UserId = 3, ContentId = contentIds[0], CreatedAt = DateTime.UtcNow },
+                        new UserLike { UserId = 3, ContentId = contentIds[4], CreatedAt = DateTime.UtcNow },
+                        new UserLike { UserId = 4, ContentId = contentIds[2], CreatedAt = DateTime.UtcNow },
+                        new UserLike { UserId = 5, ContentId = contentIds[1], CreatedAt = DateTime.UtcNow },
+                        new UserLike { UserId = 5, ContentId = contentIds[4], CreatedAt = DateTime.UtcNow }
+                    };
+                    
+                    // Sample comments
+                    var comments = new[]
+                    {
+                        new UserComment { UserId = 1, ContentId = contentIds[1], CommentText = "Great article on .NET Core!", CreatedAt = DateTime.UtcNow },
+                        new UserComment { UserId = 2, ContentId = contentIds[0], CommentText = "Very helpful introduction to Elasticsearch", CreatedAt = DateTime.UtcNow },
+                        new UserComment { UserId = 3, ContentId = contentIds[3], CommentText = "These optimization tips worked well for me", CreatedAt = DateTime.UtcNow },
+                        new UserComment { UserId = 4, ContentId = contentIds[2], CommentText = "Love the personalization insights", CreatedAt = DateTime.UtcNow },
+                        new UserComment { UserId = 5, ContentId = contentIds[4], CommentText = "Docker is changing how we deploy applications", CreatedAt = DateTime.UtcNow }
+                    };
+                    
+                    // Sample shares
+                    var shares = new[]
+                    {
+                        new UserShare { UserId = 1, ContentId = contentIds[2], CreatedAt = DateTime.UtcNow },
+                        new UserShare { UserId = 2, ContentId = contentIds[1], CreatedAt = DateTime.UtcNow },
+                        new UserShare { UserId = 3, ContentId = contentIds[0], CreatedAt = DateTime.UtcNow },
+                        new UserShare { UserId = 4, ContentId = contentIds[4], CreatedAt = DateTime.UtcNow },
+                        new UserShare { UserId = 5, ContentId = contentIds[3], CreatedAt = DateTime.UtcNow }
+                    };
+                    
+                    await _dbContext.Follows.AddRangeAsync(follows);
+                    await _dbContext.Likes.AddRangeAsync(likes);
+                    await _dbContext.Comments.AddRangeAsync(comments);
+                    await _dbContext.Shares.AddRangeAsync(shares);
+                    
+                    await _dbContext.SaveChangesAsync();
+                }
+                else
                 {
-                    new UserComment { UserId = 1, ContentId = "2", CommentText = "Great article on .NET Core!", CreatedAt = DateTime.UtcNow },
-                    new UserComment { UserId = 2, ContentId = "1", CommentText = "Very helpful introduction to Elasticsearch", CreatedAt = DateTime.UtcNow },
-                    new UserComment { UserId = 3, ContentId = "4", CommentText = "These optimization tips worked well for me", CreatedAt = DateTime.UtcNow },
-                    new UserComment { UserId = 4, ContentId = "3", CommentText = "Love the personalization insights", CreatedAt = DateTime.UtcNow },
-                    new UserComment { UserId = 5, ContentId = "5", CommentText = "Docker is changing how we deploy applications", CreatedAt = DateTime.UtcNow }
-                };
-                
-                // Sample shares
-                var shares = new[]
-                {
-                    new UserShare { UserId = 1, ContentId = "3", CreatedAt = DateTime.UtcNow },
-                    new UserShare { UserId = 2, ContentId = "2", CreatedAt = DateTime.UtcNow },
-                    new UserShare { UserId = 3, ContentId = "1", CreatedAt = DateTime.UtcNow },
-                    new UserShare { UserId = 4, ContentId = "5", CreatedAt = DateTime.UtcNow },
-                    new UserShare { UserId = 5, ContentId = "4", CreatedAt = DateTime.UtcNow }
-                };
-                
-                await _dbContext.Follows.AddRangeAsync(follows);
-                await _dbContext.Likes.AddRangeAsync(likes);
-                await _dbContext.Comments.AddRangeAsync(comments);
-                await _dbContext.Shares.AddRangeAsync(shares);
-                
-                await _dbContext.SaveChangesAsync();
+                    _logger.LogWarning("Not enough content to seed interactions");
+                }
             }
             else
             {
@@ -285,7 +295,7 @@ namespace ElasticPersonalization.Infrastructure.Data
                         )
                         .Map<Content>(m => m
                             .Properties(p => p
-                                .Keyword(k => k.Name(c => c.Id))
+                                .Number(n => n.Name(c => c.Id).Type(NumberType.Integer)) // Changed to Number
                                 .Text(t => t
                                     .Name(c => c.Title)
                                     .Analyzer("content_analyzer")
@@ -342,7 +352,7 @@ namespace ElasticPersonalization.Infrastructure.Data
                 {
                     bulkDescriptor.Index<Content>(i => i
                         .Index(_elasticClient.ConnectionSettings.DefaultIndex)
-                        .Id(content.Id)
+                        .Id(content.Id.ToString()) // Convert to string for ES
                         .Document(content)
                     );
                 }
