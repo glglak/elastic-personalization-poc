@@ -10,7 +10,7 @@ namespace ElasticPersonalization.Core.Interfaces
         Task<List<ContentDto>> GetPersonalizedFeedAsync(int userId, int page = 1, int pageSize = 20);
         
         // Calculate personalization score for a content item for a specific user
-        Task<double> CalculatePersonalizationScoreAsync(int userId, string contentId);
+        Task<double> CalculatePersonalizationScoreAsync(int userId, int contentId);
         
         // Get personalization factors for a user (for transparency)
         Task<PersonalizationFactors> GetPersonalizationFactorsAsync(int userId);
