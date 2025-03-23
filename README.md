@@ -34,11 +34,12 @@ The architecture follows a clean, layered approach:
 
 ## 🚀 Getting Started
 
-### Using Docker for Desktop on Windows
+### Using Docker for Windows
 
 1. **Prerequisites**:
-   - [Docker for Desktop](https://www.docker.com/products/docker-desktop/) installed on Windows
-   - [Git](https://git-scm.com/downloads) for cloning the repository
+   - [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) installed and running
+   - [Git for Windows](https://git-scm.com/download/win) for cloning the repository
+   - WSL 2 enabled (recommended for better performance)
 
 2. **Clone the repository**:
    ```powershell
@@ -46,19 +47,44 @@ The architecture follows a clean, layered approach:
    cd elastic-personalization-poc
    ```
 
-3. **Using Docker Compose**:
-   ```bash
-   # Clone the repository
-   git clone https://github.com/glglak/elastic-personalization-poc.git
-   cd elastic-personalization-poc
-
-   # Start the services with Docker Compose
+3. **Start the services with Docker Compose**:
+   ```powershell
+   # Make sure Docker Desktop is running first
    docker-compose up -d
    ```
 
-4. **Access the services**:
+   This will:
+   - Build the API image
+   - Start SQL Server
+   - Start Elasticsearch and Kibana
+   - Initialize the database with migrations
+   - Set up Elasticsearch indices
+
+4. **Verify the services are running**:
+   ```powershell
+   docker-compose ps
+   ```
+
+   All services should show as "running" and health checks should pass after a minute or two.
+
+5. **Check application health**:
+   ```powershell
+   # Using curl (if installed)
+   curl http://localhost:5000/api/health
+
+   # Or simply open in your browser
+   # http://localhost:5000/api/health
+   ```
+
+6. **Access the services**:
    - API: http://localhost:5000
-   - Kibana: http://localhost:5601
+   - Kibana: http://localhost:5601 (useful for exploring Elasticsearch data)
+
+7. **Troubleshooting Docker for Windows issues**:
+   - If containers fail to start, check Docker Desktop logs
+   - Ensure WSL 2 is enabled for better performance
+   - Try increasing Docker Desktop resource allocations (Memory, CPU)
+   - For port conflicts, modify the port mappings in docker-compose.yml
 
 ### Health Monitoring
 
@@ -95,6 +121,8 @@ The project follows a clean architecture pattern with the following components:
 - `src/ElasticPersonalization.API/Controllers/`: API endpoints
 - `scripts/`: Utility scripts for setup and maintenance
 - `docs/`: Documentation assets including diagrams
+- `docker-compose.yml`: Docker services configuration
+- `Dockerfile`: API container build instructions
 
 ## 📚 Key Features
 
@@ -138,23 +166,42 @@ The project follows a clean architecture pattern with the following components:
 
 ## 📦 Development
 
-### Prerequisites
-
-- .NET 8 SDK
-- Docker and Docker Compose (for local development with containers)
-- Entity Framework Core tools: `dotnet tool install --global dotnet-ef`
-
-### Local Development
+### Local Development with Docker for Windows
 
 1. Clone the repository
-2. Start the required services (SQL Server, Elasticsearch):
-   ```
+2. Start the required services:
+   ```powershell
+   # Start only database and Elasticsearch
    docker-compose up -d db elasticsearch kibana
    ```
-3. Run the API:
-   ```
+3. Run the API locally (outside Docker):
+   ```powershell
+   # From the project root
    dotnet run --project src/ElasticPersonalization.API
    ```
+4. For debugging in Visual Studio or Visual Studio Code:
+   - Open the solution in Visual Studio
+   - Update connection strings in appsettings.Development.json to point to containerized services:
+   ```json
+   {
+     "ConnectionStrings": {
+       "ContentActionsConnection": "Server=localhost;Database=ContentActions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;"
+     },
+     "ElasticsearchSettings": {
+       "Url": "http://localhost:9200"
+     }
+   }
+   ```
+
+### Stopping the Services
+
+```powershell
+# Stop all containers but preserve data
+docker-compose down
+
+# Or to completely remove everything including volumes
+docker-compose down -v
+```
 
 ## 🔄 Recent Updates
 
