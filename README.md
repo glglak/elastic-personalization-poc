@@ -46,64 +46,19 @@ The architecture follows a clean, layered approach:
    cd elastic-personalization-poc
    ```
 
-3. **Build and run with Docker for Desktop**:
-   ```powershell
-   # Build the Docker images
-   docker build -t elastic-personalization-api .
-   
-   # Create a Docker network for the containers
-   docker network create elastic-personalization-network
-   
-   # Start SQL Server
-   docker run -d --name sqlserver --network elastic-personalization-network -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourStrongPassword!" -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
-   
-   # Start Elasticsearch
-   docker run -d --name elasticsearch --network elastic-personalization-network -e "discovery.type=single-node" -e "xpack.security.enabled=false" -p 9200:9200 -p 9300:9300 docker.elastic.co/elasticsearch/elasticsearch:7.17.10
-   
-   # Start Kibana
-   docker run -d --name kibana --network elastic-personalization-network -e "ELASTICSEARCH_HOSTS=http://elasticsearch:9200" -p 5601:5601 docker.elastic.co/kibana/kibana:7.17.10
-   
-   # Wait a bit for the databases to initialize
-   Start-Sleep -Seconds 30
-   
-   # Start the API with connection to the other services
-   docker run -d --name api --network elastic-personalization-network -e "ConnectionStrings__ContentActionsConnection=Server=sqlserver;Database=ContentActions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;" -e "ElasticsearchSettings__Url=http://elasticsearch:9200" -p 5000:80 elastic-personalization-api
+3. **Using Docker Compose**:
+   ```bash
+   # Clone the repository
+   git clone https://github.com/glglak/elastic-personalization-poc.git
+   cd elastic-personalization-poc
+
+   # Start the services with Docker Compose
+   docker-compose up -d
    ```
 
-4. **Initialize the database and Elasticsearch**:
-   ```powershell
-   # Copy the initialization scripts into the SQL Server container
-   docker cp scripts/InitializeDB.sql sqlserver:/var/opt/mssql/
-   
-   # Run the SQL initialization script
-   docker exec -it sqlserver /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrongPassword! -i /var/opt/mssql/InitializeDB.sql
-   
-   # Initialize Elasticsearch
-   docker cp scripts/InitializeElasticsearch.js api:/app/
-   docker exec -it api node /app/InitializeElasticsearch.js http://elasticsearch:9200 content
-   ```
-
-5. **Access the services**:
+4. **Access the services**:
    - API: http://localhost:5000
    - Kibana: http://localhost:5601
-
-### Using Docker Compose (Alternative)
-
-```bash
-# Clone the repository
-git clone https://github.com/glglak/elastic-personalization-poc.git
-cd elastic-personalization-poc
-
-# Start the services and initialize the environment
-docker-compose up -d
-
-# Initialize the database (Windows)
-./scripts/RunMigrations.ps1
-
-# OR initialize the database (Linux/macOS)
-chmod +x scripts/RunMigrations.sh
-./scripts/RunMigrations.sh
-```
 
 ### Health Monitoring
 
@@ -114,6 +69,14 @@ GET /api/health
 ```
 
 This endpoint returns detailed information about the health of each component and can be used for monitoring.
+
+Additional health endpoints:
+```
+GET /api/health/database - Check database health
+GET /api/health/elasticsearch - Check Elasticsearch health
+POST /api/health/elasticsearch/initialize - Create/initialize the Elasticsearch index
+POST /api/health/elasticsearch/reindex - Reindex all content in Elasticsearch
+```
 
 ## 🔧 Project Structure
 
@@ -188,18 +151,21 @@ The project follows a clean architecture pattern with the following components:
    ```
    docker-compose up -d db elasticsearch kibana
    ```
-3. Run database migrations:
-   ```
-   # Windows
-   ./scripts/RunMigrations.ps1
-   
-   # Linux/macOS
-   ./scripts/RunMigrations.sh
-   ```
-4. Start the API:
+3. Run the API:
    ```
    dotnet run --project src/ElasticPersonalization.API
    ```
+
+## 🔄 Recent Updates
+
+The project has been updated to include:
+
+- **Improved database initialization**: Now using Entity Framework migrations properly
+- **Enhanced Elasticsearch integration**: Better index management and error handling
+- **Dependency handling**: Added wait mechanisms for services to be ready
+- **Health checking**: Comprehensive health endpoints with detailed component status
+- **Resilience**: Better error handling and retry mechanisms
+- **Docker improvements**: Container health checks and dependency management
 
 ## 📝 License
 
