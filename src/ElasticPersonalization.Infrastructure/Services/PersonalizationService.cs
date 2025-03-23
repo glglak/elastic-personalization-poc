@@ -121,7 +121,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             }
         }
 
-        public async Task<double> CalculatePersonalizationScoreAsync(int userId, string contentId)
+        public async Task<double> CalculatePersonalizationScoreAsync(int userId, int contentId)
         {
             try
             {
@@ -141,8 +141,6 @@ namespace ElasticPersonalization.Infrastructure.Services
                 // Get content
                 var content = await _dbContext.Content
                     .Include(c => c.Creator)
-                    .Include(c => c.Tags)
-                    .Include(c => c.Categories)
                     .FirstOrDefaultAsync(c => c.Id == contentId);
 
                 if (content == null)
@@ -218,7 +216,7 @@ namespace ElasticPersonalization.Infrastructure.Services
                 }
 
                 // Get content that the user has interacted with
-                var interactedContentIds = new HashSet<string>(
+                var interactedContentIds = new HashSet<int>(
                     user.Shares.Select(s => s.ContentId)
                     .Concat(user.Likes.Select(l => l.ContentId))
                     .Concat(user.Comments.Select(c => c.ContentId))
@@ -265,7 +263,7 @@ namespace ElasticPersonalization.Infrastructure.Services
                     .Take(3)
                     .Select(s => new ContentInteractionInfo
                     {
-                        ContentId = s.ContentId,
+                        ContentId = s.ContentId.ToString(),
                         ContentTitle = interactedContent.FirstOrDefault(c => c.Id == s.ContentId)?.Title ?? "Unknown",
                         InteractionType = "Share",
                         InfluenceScore = _weights.ShareWeight
@@ -277,7 +275,7 @@ namespace ElasticPersonalization.Infrastructure.Services
                     .Take(3)
                     .Select(c => new ContentInteractionInfo
                     {
-                        ContentId = c.ContentId,
+                        ContentId = c.ContentId.ToString(),
                         ContentTitle = interactedContent.FirstOrDefault(ct => ct.Id == c.ContentId)?.Title ?? "Unknown",
                         InteractionType = "Comment",
                         InfluenceScore = _weights.CommentWeight
@@ -289,7 +287,7 @@ namespace ElasticPersonalization.Infrastructure.Services
                     .Take(3)
                     .Select(l => new ContentInteractionInfo
                     {
-                        ContentId = l.ContentId,
+                        ContentId = l.ContentId.ToString(),
                         ContentTitle = interactedContent.FirstOrDefault(c => c.Id == l.ContentId)?.Title ?? "Unknown",
                         InteractionType = "Like",
                         InfluenceScore = _weights.LikeWeight
@@ -298,7 +296,10 @@ namespace ElasticPersonalization.Infrastructure.Services
                 // Take only the most recent/significant interactions
                 recentInteractions = recentInteractions
                     .OrderByDescending(i => i.InfluenceScore)
-                    .ThenByDescending(i => interactedContent.FirstOrDefault(c => c.Id == i.ContentId)?.CreatedAt ?? DateTime.MinValue)
+                    .ThenByDescending(i => {
+                        int.TryParse(i.ContentId, out var id);
+                        return interactedContent.FirstOrDefault(c => c.Id == id)?.CreatedAt ?? DateTime.MinValue;
+                    })
                     .Take(5)
                     .ToList();
 
