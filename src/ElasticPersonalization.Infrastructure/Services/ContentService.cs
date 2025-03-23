@@ -17,7 +17,7 @@ namespace ElasticPersonalization.Infrastructure.Services
         private readonly ContentActionsDbContext _dbContext;
         private readonly IElasticClient _elasticClient;
         private readonly ILogger<ContentService> _logger;
-        
+
         public ContentService(
             ContentActionsDbContext dbContext,
             IElasticClient elasticClient,
@@ -28,23 +28,25 @@ namespace ElasticPersonalization.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<ContentDto> GetContentAsync(string contentId)
+        public async Task<ContentDto> GetContentAsync(int contentId)
         {
             try
             {
                 var content = await _dbContext.Content
                     .Include(c => c.Creator)
-                    .Include(c => c.Likes)
-                    .Include(c => c.Comments)
-                    .Include(c => c.Shares)
                     .FirstOrDefaultAsync(c => c.Id == contentId);
-                
+
                 if (content == null)
                 {
-                    throw new ArgumentException($"Content with ID {contentId} not found");
+                    return null;
                 }
-                
-                return MapToContentDto(content);
+
+                // Get interaction counts
+                var shareCount = await _dbContext.Shares.CountAsync(s => s.ContentId == contentId);
+                var likeCount = await _dbContext.Likes.CountAsync(l => l.ContentId == contentId);
+                var commentCount = await _dbContext.Comments.CountAsync(c => c.ContentId == contentId);
+
+                return MapToContentDto(content, shareCount, likeCount, commentCount);
             }
             catch (Exception ex)
             {
@@ -57,76 +59,87 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
-                // Verify creator exists
+                // Check if creator exists
                 var creator = await _dbContext.Users.FindAsync(contentDto.CreatorId);
                 if (creator == null)
                 {
                     throw new ArgumentException($"Creator with ID {contentDto.CreatorId} not found");
                 }
-                
+
                 // Create content entity
                 var content = new Content
                 {
-                    Id = Guid.NewGuid().ToString(),
                     Title = contentDto.Title,
                     Description = contentDto.Description,
                     Body = contentDto.Body,
+                    ContentText = contentDto.Body, // Keep the ContentText property in sync
                     CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatorId = contentDto.CreatorId,
                     Tags = contentDto.Tags,
-                    Categories = contentDto.Categories,
-                    CreatorId = contentDto.CreatorId
+                    Categories = contentDto.Categories
                 };
-                
-                // Save to database
+
                 _dbContext.Content.Add(content);
                 await _dbContext.SaveChangesAsync();
-                
+
                 // Index in Elasticsearch
                 await SyncContentToElasticsearchAsync(content);
-                
+
                 return MapToContentDto(content);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating content: {Message}", ex.Message);
+                _logger.LogError(ex, "Error creating content");
                 throw;
             }
         }
 
-        public async Task<ContentDto> UpdateContentAsync(string contentId, UpdateContentDto contentDto)
+        public async Task<ContentDto> UpdateContentAsync(int contentId, UpdateContentDto contentDto)
         {
             try
             {
                 var content = await _dbContext.Content.FindAsync(contentId);
                 if (content == null)
                 {
-                    throw new ArgumentException($"Content with ID {contentId} not found");
+                    return null;
                 }
-                
-                // Update only the provided fields
-                if (contentDto.Title != null)
+
+                // Update properties if provided
+                if (!string.IsNullOrEmpty(contentDto.Title))
+                {
                     content.Title = contentDto.Title;
-                
-                if (contentDto.Description != null)
+                }
+
+                if (!string.IsNullOrEmpty(contentDto.Description))
+                {
                     content.Description = contentDto.Description;
-                
-                if (contentDto.Body != null)
+                }
+
+                if (!string.IsNullOrEmpty(contentDto.Body))
+                {
                     content.Body = contentDto.Body;
-                
+                    content.ContentText = contentDto.Body; // Keep the ContentText property in sync
+                }
+
                 if (contentDto.Tags != null)
+                {
                     content.Tags = contentDto.Tags;
-                
+                }
+
                 if (contentDto.Categories != null)
+                {
                     content.Categories = contentDto.Categories;
-                
-                // Save to database
-                _dbContext.Content.Update(content);
+                }
+
+                content.UpdatedAt = DateTime.UtcNow;
+
                 await _dbContext.SaveChangesAsync();
-                
+
                 // Update in Elasticsearch
                 await SyncContentToElasticsearchAsync(content);
-                
-                return MapToContentDto(content);
+
+                return await GetContentAsync(contentId);
             }
             catch (Exception ex)
             {
@@ -135,20 +148,29 @@ namespace ElasticPersonalization.Infrastructure.Services
             }
         }
 
-        public async Task DeleteContentAsync(string contentId)
+        public async Task DeleteContentAsync(int contentId)
         {
             try
             {
                 var content = await _dbContext.Content.FindAsync(contentId);
                 if (content == null)
                 {
-                    throw new ArgumentException($"Content with ID {contentId} not found");
+                    return;
                 }
-                
-                // Remove from database
+
+                // First delete related interactions
+                var shares = await _dbContext.Shares.Where(s => s.ContentId == contentId).ToListAsync();
+                var likes = await _dbContext.Likes.Where(l => l.ContentId == contentId).ToListAsync();
+                var comments = await _dbContext.Comments.Where(c => c.ContentId == contentId).ToListAsync();
+
+                _dbContext.Shares.RemoveRange(shares);
+                _dbContext.Likes.RemoveRange(likes);
+                _dbContext.Comments.RemoveRange(comments);
+
+                // Then delete the content
                 _dbContext.Content.Remove(content);
                 await _dbContext.SaveChangesAsync();
-                
+
                 // Remove from Elasticsearch
                 await RemoveContentFromElasticsearchAsync(contentId);
             }
@@ -164,55 +186,40 @@ namespace ElasticPersonalization.Infrastructure.Services
             try
             {
                 var searchResponse = await _elasticClient.SearchAsync<Content>(s => s
+                    .Index(_elasticClient.ConnectionSettings.DefaultIndex)
                     .From((page - 1) * pageSize)
                     .Size(pageSize)
                     .Query(q => q
-                        .MultiMatch(m => m
+                        .MultiMatch(mm => mm
                             .Fields(f => f
-                                .Field(p => p.Title, 2.0)
-                                .Field(p => p.Description, 1.5)
-                                .Field(p => p.Body)
-                                .Field(p => p.Tags, 1.5)
-                                .Field(p => p.Categories, 1.5)
+                                .Field(c => c.Title, 2.0)
+                                .Field(c => c.Description, 1.5)
+                                .Field(c => c.Body)
+                                .Field(c => c.Tags, 1.5)
+                                .Field(c => c.Categories, 1.5)
                             )
                             .Query(query)
                             .Type(TextQueryType.BestFields)
                             .Fuzziness(Fuzziness.Auto)
                         )
                     )
+                    .Sort(sort => sort
+                        .Descending("_score")
+                        .Descending(c => c.CreatedAt)
+                    )
                 );
 
                 if (!searchResponse.IsValid)
                 {
-                    _logger.LogError("Error searching for content: {Error}", searchResponse.DebugInformation);
-                    throw new Exception("Error searching for content: " + searchResponse.DebugInformation);
-                }
-
-                if (searchResponse.Total == 0)
-                {
+                    _logger.LogError("Elasticsearch search failed: {Error}", searchResponse.DebugInformation);
                     return new List<ContentDto>();
                 }
 
-                var contentIds = searchResponse.Documents.Select(c => c.Id).ToList();
-                var contentItems = await _dbContext.Content
-                    .Include(c => c.Creator)
-                    .Include(c => c.Likes)
-                    .Include(c => c.Comments)
-                    .Include(c => c.Shares)
-                    .Where(c => contentIds.Contains(c.Id))
-                    .ToListAsync();
-
-                // Preserve order from search results
-                var orderedContent = contentIds
-                    .Select(id => contentItems.FirstOrDefault(c => c.Id == id))
-                    .Where(c => c != null)
-                    .ToList();
-
-                return orderedContent.Select(MapToContentDto).ToList();
+                return await MapSearchResultsToContentDtosAsync(searchResponse.Documents);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error searching for content with query: {Query}", query);
+                _logger.LogError(ex, "Error searching content with query: {Query}", query);
                 throw;
             }
         }
@@ -222,41 +229,31 @@ namespace ElasticPersonalization.Infrastructure.Services
             try
             {
                 var searchResponse = await _elasticClient.SearchAsync<Content>(s => s
+                    .Index(_elasticClient.ConnectionSettings.DefaultIndex)
                     .From((page - 1) * pageSize)
                     .Size(pageSize)
                     .Query(q => q
                         .Match(m => m
-                            .Field(f => f.Categories)
+                            .Field(c => c.Categories)
                             .Query(category)
                         )
+                    )
+                    .Sort(sort => sort
+                        .Descending(c => c.CreatedAt)
                     )
                 );
 
                 if (!searchResponse.IsValid)
                 {
-                    _logger.LogError("Error searching for content by category: {Error}", searchResponse.DebugInformation);
-                    throw new Exception("Error searching for content by category: " + searchResponse.DebugInformation);
+                    _logger.LogError("Elasticsearch category search failed: {Error}", searchResponse.DebugInformation);
+                    return new List<ContentDto>();
                 }
 
-                var contentIds = searchResponse.Documents.Select(c => c.Id).ToList();
-                var contentItems = await _dbContext.Content
-                    .Include(c => c.Creator)
-                    .Include(c => c.Likes)
-                    .Include(c => c.Comments)
-                    .Include(c => c.Shares)
-                    .Where(c => contentIds.Contains(c.Id))
-                    .ToListAsync();
-
-                var orderedContent = contentIds
-                    .Select(id => contentItems.FirstOrDefault(c => c.Id == id))
-                    .Where(c => c != null)
-                    .ToList();
-
-                return orderedContent.Select(MapToContentDto).ToList();
+                return await MapSearchResultsToContentDtosAsync(searchResponse.Documents);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving content by category: {Category}", category);
+                _logger.LogError(ex, "Error getting content by category: {Category}", category);
                 throw;
             }
         }
@@ -266,41 +263,31 @@ namespace ElasticPersonalization.Infrastructure.Services
             try
             {
                 var searchResponse = await _elasticClient.SearchAsync<Content>(s => s
+                    .Index(_elasticClient.ConnectionSettings.DefaultIndex)
                     .From((page - 1) * pageSize)
                     .Size(pageSize)
                     .Query(q => q
                         .Match(m => m
-                            .Field(f => f.Tags)
+                            .Field(c => c.Tags)
                             .Query(tag)
                         )
+                    )
+                    .Sort(sort => sort
+                        .Descending(c => c.CreatedAt)
                     )
                 );
 
                 if (!searchResponse.IsValid)
                 {
-                    _logger.LogError("Error searching for content by tag: {Error}", searchResponse.DebugInformation);
-                    throw new Exception("Error searching for content by tag: " + searchResponse.DebugInformation);
+                    _logger.LogError("Elasticsearch tag search failed: {Error}", searchResponse.DebugInformation);
+                    return new List<ContentDto>();
                 }
 
-                var contentIds = searchResponse.Documents.Select(c => c.Id).ToList();
-                var contentItems = await _dbContext.Content
-                    .Include(c => c.Creator)
-                    .Include(c => c.Likes)
-                    .Include(c => c.Comments)
-                    .Include(c => c.Shares)
-                    .Where(c => contentIds.Contains(c.Id))
-                    .ToListAsync();
-
-                var orderedContent = contentIds
-                    .Select(id => contentItems.FirstOrDefault(c => c.Id == id))
-                    .Where(c => c != null)
-                    .ToList();
-
-                return orderedContent.Select(MapToContentDto).ToList();
+                return await MapSearchResultsToContentDtosAsync(searchResponse.Documents);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving content by tag: {Tag}", tag);
+                _logger.LogError(ex, "Error getting content by tag: {Tag}", tag);
                 throw;
             }
         }
@@ -309,22 +296,32 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
-                var contentItems = await _dbContext.Content
-                    .Include(c => c.Creator)
-                    .Include(c => c.Likes)
-                    .Include(c => c.Comments)
-                    .Include(c => c.Shares)
-                    .Where(c => c.CreatorId == creatorId)
-                    .OrderByDescending(c => c.CreatedAt)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
+                var searchResponse = await _elasticClient.SearchAsync<Content>(s => s
+                    .Index(_elasticClient.ConnectionSettings.DefaultIndex)
+                    .From((page - 1) * pageSize)
+                    .Size(pageSize)
+                    .Query(q => q
+                        .Term(t => t
+                            .Field(c => c.CreatorId)
+                            .Value(creatorId)
+                        )
+                    )
+                    .Sort(sort => sort
+                        .Descending(c => c.CreatedAt)
+                    )
+                );
 
-                return contentItems.Select(MapToContentDto).ToList();
+                if (!searchResponse.IsValid)
+                {
+                    _logger.LogError("Elasticsearch creator search failed: {Error}", searchResponse.DebugInformation);
+                    return new List<ContentDto>();
+                }
+
+                return await MapSearchResultsToContentDtosAsync(searchResponse.Documents);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving content by creator: {CreatorId}", creatorId);
+                _logger.LogError(ex, "Error getting content by creator: {CreatorId}", creatorId);
                 throw;
             }
         }
@@ -338,26 +335,24 @@ namespace ElasticPersonalization.Infrastructure.Services
                 if (!response.IsValid)
                 {
                     _logger.LogError("Failed to index content in Elasticsearch: {Error}", response.DebugInformation);
-                    throw new Exception("Failed to index content in Elasticsearch: " + response.DebugInformation);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error syncing content to Elasticsearch: {ContentId}", content.Id);
+                _logger.LogError(ex, "Error synchronizing content to Elasticsearch: {ContentId}", content.Id);
                 throw;
             }
         }
 
-        public async Task RemoveContentFromElasticsearchAsync(string contentId)
+        public async Task RemoveContentFromElasticsearchAsync(int contentId)
         {
             try
             {
-                var response = await _elasticClient.DeleteAsync<Content>(contentId);
+                var response = await _elasticClient.DeleteAsync<Content>(contentId.ToString());
                 
                 if (!response.IsValid && response.Result != Result.NotFound)
                 {
                     _logger.LogError("Failed to remove content from Elasticsearch: {Error}", response.DebugInformation);
-                    throw new Exception("Failed to remove content from Elasticsearch: " + response.DebugInformation);
                 }
             }
             catch (Exception ex)
@@ -367,8 +362,8 @@ namespace ElasticPersonalization.Infrastructure.Services
             }
         }
 
-        // Helper method to map Content entity to ContentDto
-        private ContentDto MapToContentDto(Content content)
+        // Helper methods
+        private ContentDto MapToContentDto(Content content, int? shareCount = null, int? likeCount = null, int? commentCount = null)
         {
             return new ContentDto
             {
@@ -380,11 +375,58 @@ namespace ElasticPersonalization.Infrastructure.Services
                 Tags = content.Tags,
                 Categories = content.Categories,
                 CreatorId = content.CreatorId,
-                CreatorUsername = content.Creator?.Username ?? "Unknown",
-                ShareCount = content.Shares?.Count ?? 0,
-                LikeCount = content.Likes?.Count ?? 0,
-                CommentCount = content.Comments?.Count ?? 0
+                CreatorUsername = content.Creator?.Username ?? "",
+                ShareCount = shareCount ?? 0,
+                LikeCount = likeCount ?? 0,
+                CommentCount = commentCount ?? 0
             };
+        }
+
+        private async Task<List<ContentDto>> MapSearchResultsToContentDtosAsync(IEnumerable<Content> contents)
+        {
+            var contentIds = contents.Select(c => c.Id).ToList();
+            
+            // Get all interaction counts in one go
+            var shareCounts = await _dbContext.Shares
+                .Where(s => contentIds.Contains(s.ContentId))
+                .GroupBy(s => s.ContentId)
+                .Select(g => new { ContentId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ContentId, x => x.Count);
+                
+            var likeCounts = await _dbContext.Likes
+                .Where(l => contentIds.Contains(l.ContentId))
+                .GroupBy(l => l.ContentId)
+                .Select(g => new { ContentId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ContentId, x => x.Count);
+                
+            var commentCounts = await _dbContext.Comments
+                .Where(c => contentIds.Contains(c.ContentId))
+                .GroupBy(c => c.ContentId)
+                .Select(g => new { ContentId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ContentId, x => x.Count);
+                
+            // Get creator usernames
+            var creatorIds = contents.Select(c => c.CreatorId).Distinct().ToList();
+            var creators = await _dbContext.Users
+                .Where(u => creatorIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.Username);
+                
+            // Map to DTOs
+            return contents.Select(content => new ContentDto
+            {
+                Id = content.Id,
+                Title = content.Title,
+                Description = content.Description,
+                Body = content.Body,
+                CreatedAt = content.CreatedAt,
+                Tags = content.Tags,
+                Categories = content.Categories,
+                CreatorId = content.CreatorId,
+                CreatorUsername = creators.GetValueOrDefault(content.CreatorId, ""),
+                ShareCount = shareCounts.GetValueOrDefault(content.Id, 0),
+                LikeCount = likeCounts.GetValueOrDefault(content.Id, 0),
+                CommentCount = commentCounts.GetValueOrDefault(content.Id, 0)
+            }).ToList();
         }
     }
 }
