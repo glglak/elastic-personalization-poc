@@ -5,8 +5,8 @@ using ElasticPersonalization.Infrastructure.Data;
 using ElasticPersonalization.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
-using System.Net;
 using Nest;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,13 +38,25 @@ builder.Services.AddDbContext<ContentActionsDbContext>(options =>
 // Add health checks
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ContentActionsDbContext>("database")
-    .AddElasticsearch("elasticsearch", options =>
-    {
+    .AddCheck("elasticsearch", () => {
         var elasticUri = builder.Configuration["ElasticsearchSettings:Url"];
-        options.UseElasticsearch(elasticUri);
+        try
+        {
+            var client = ElasticsearchExtensions.UseElasticsearch(elasticUri);
+            var result = client.Ping();
+            if (result.IsValid)
+            {
+                return HealthCheckResult.Healthy("Elasticsearch is healthy");
+            }
+            return HealthCheckResult.Degraded($"Elasticsearch ping failed: {result.DebugInformation}");
+        }
+        catch (Exception ex)
+        {
+            return HealthCheckResult.Unhealthy($"Elasticsearch check failed: {ex.Message}");
+        }
     });
 
-// Add Elasticsearch
+// Add Elasticsearch using our custom extension method
 builder.Services.AddElasticsearch(builder.Configuration);
 
 // Register services
@@ -108,7 +120,7 @@ using (var scope = app.Services.CreateScope())
             var contentService = services.GetRequiredService<IContentService>();
             
             logger.LogInformation("Initializing Elasticsearch index...");
-            await contentService.EnsureIndexExistsAsync();
+            contentService.EnsureIndexExistsAsync().GetAwaiter().GetResult();
             logger.LogInformation("Elasticsearch index initialized successfully");
         }
         catch (Exception ex)
@@ -130,5 +142,6 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
