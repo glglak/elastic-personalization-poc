@@ -22,5 +22,10 @@ namespace ElasticPersonalization.Core.Interfaces
         // Synchronization with Elasticsearch
         Task SyncContentToElasticsearchAsync(Content content);
         Task RemoveContentFromElasticsearchAsync(int contentId);
+        
+        // Index management
+        Task<bool> EnsureIndexExistsAsync();
+        Task ReindexAllContentAsync();
+        Task<bool> PingElasticsearchAsync();
     }
 }
