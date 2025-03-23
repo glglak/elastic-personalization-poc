@@ -17,6 +17,7 @@ namespace ElasticPersonalization.Infrastructure.Services
         private readonly ContentActionsDbContext _dbContext;
         private readonly IElasticClient _elasticClient;
         private readonly ILogger<ContentService> _logger;
+        private readonly string _indexName;
 
         public ContentService(
             ContentActionsDbContext dbContext,
@@ -26,6 +27,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             _dbContext = dbContext;
             _elasticClient = elasticClient;
             _logger = logger;
+            _indexName = _elasticClient.ConnectionSettings.DefaultIndex;
         }
 
         public async Task<ContentDto> GetContentAsync(int contentId)
@@ -185,8 +187,11 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
+                // Ensure index exists before searching
+                await EnsureIndexExistsAsync();
+                
                 var searchResponse = await _elasticClient.SearchAsync<Content>(s => s
-                    .Index(_elasticClient.ConnectionSettings.DefaultIndex)
+                    .Index(_indexName)
                     .From((page - 1) * pageSize)
                     .Size(pageSize)
                     .Query(q => q
@@ -220,7 +225,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error searching content with query: {Query}", query);
-                throw;
+                return new List<ContentDto>(); // Return empty list instead of throwing to prevent app failure
             }
         }
 
@@ -228,8 +233,11 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
+                // Ensure index exists before searching
+                await EnsureIndexExistsAsync();
+                
                 var searchResponse = await _elasticClient.SearchAsync<Content>(s => s
-                    .Index(_elasticClient.ConnectionSettings.DefaultIndex)
+                    .Index(_indexName)
                     .From((page - 1) * pageSize)
                     .Size(pageSize)
                     .Query(q => q
@@ -254,7 +262,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting content by category: {Category}", category);
-                throw;
+                return new List<ContentDto>(); // Return empty list instead of throwing to prevent app failure
             }
         }
 
@@ -262,8 +270,11 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
+                // Ensure index exists before searching
+                await EnsureIndexExistsAsync();
+                
                 var searchResponse = await _elasticClient.SearchAsync<Content>(s => s
-                    .Index(_elasticClient.ConnectionSettings.DefaultIndex)
+                    .Index(_indexName)
                     .From((page - 1) * pageSize)
                     .Size(pageSize)
                     .Query(q => q
@@ -288,7 +299,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting content by tag: {Tag}", tag);
-                throw;
+                return new List<ContentDto>(); // Return empty list instead of throwing to prevent app failure
             }
         }
 
@@ -296,8 +307,11 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
+                // Ensure index exists before searching
+                await EnsureIndexExistsAsync();
+                
                 var searchResponse = await _elasticClient.SearchAsync<Content>(s => s
-                    .Index(_elasticClient.ConnectionSettings.DefaultIndex)
+                    .Index(_indexName)
                     .From((page - 1) * pageSize)
                     .Size(pageSize)
                     .Query(q => q
@@ -322,7 +336,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting content by creator: {CreatorId}", creatorId);
-                throw;
+                return new List<ContentDto>(); // Return empty list instead of throwing to prevent app failure
             }
         }
 
@@ -330,6 +344,9 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
+                // Ensure index exists before syncing
+                await EnsureIndexExistsAsync();
+                
                 var response = await _elasticClient.IndexDocumentAsync(content);
                 
                 if (!response.IsValid)
@@ -340,7 +357,7 @@ namespace ElasticPersonalization.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error synchronizing content to Elasticsearch: {ContentId}", content.Id);
-                throw;
+                // Don't throw - we don't want to fail operations just because Elasticsearch sync failed
             }
         }
 
@@ -348,7 +365,7 @@ namespace ElasticPersonalization.Infrastructure.Services
         {
             try
             {
-                var response = await _elasticClient.DeleteAsync<Content>(contentId.ToString());
+                var response = await _elasticClient.DeleteAsync<Content>(contentId.ToString(), d => d.Index(_indexName));
                 
                 if (!response.IsValid && response.Result != Result.NotFound)
                 {
@@ -358,7 +375,169 @@ namespace ElasticPersonalization.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing content from Elasticsearch: {ContentId}", contentId);
-                throw;
+                // Don't throw - we don't want to fail operations just because Elasticsearch sync failed
+            }
+        }
+        
+        // New index management methods
+        
+        public async Task<bool> EnsureIndexExistsAsync()
+        {
+            try
+            {
+                // Check if the index exists
+                var indexExistsResponse = await _elasticClient.Indices.ExistsAsync(_indexName);
+                
+                if (indexExistsResponse.Exists)
+                {
+                    return true;
+                }
+                
+                _logger.LogInformation("Creating Elasticsearch index: {IndexName}", _indexName);
+                
+                // Create the index with mappings
+                var createIndexResponse = await _elasticClient.Indices.CreateAsync(_indexName, c => c
+                    .Settings(s => s
+                        .NumberOfShards(1)
+                        .NumberOfReplicas(0)
+                        .Analysis(a => a
+                            .Analyzers(an => an
+                                .Standard("standard_analyzer", sa => sa
+                                    .StopWords("_english_")
+                                )
+                            )
+                        )
+                    )
+                    .Map<Content>(m => m
+                        .AutoMap() // Let NEST infer most of the mapping
+                        .Properties(ps => ps
+                            .Text(t => t
+                                .Name(c => c.Title)
+                                .Analyzer("standard_analyzer")
+                                .Boost(2.0) // Boost title matches
+                            )
+                            .Text(t => t
+                                .Name(c => c.Description)
+                                .Analyzer("standard_analyzer")
+                                .Boost(1.5) // Boost description matches
+                            )
+                            .Text(t => t
+                                .Name(c => c.Body)
+                                .Analyzer("standard_analyzer")
+                            )
+                            .Text(t => t
+                                .Name(c => c.ContentText)
+                                .Analyzer("standard_analyzer")
+                            )
+                            .Keyword(k => k
+                                .Name(c => c.Tags)
+                            )
+                            .Keyword(k => k
+                                .Name(c => c.Categories)
+                            )
+                            .Number(n => n
+                                .Name(c => c.CreatorId)
+                                .Type(NumberType.Integer)
+                            )
+                            .Date(d => d
+                                .Name(c => c.CreatedAt)
+                            )
+                        )
+                    )
+                );
+                
+                if (!createIndexResponse.IsValid)
+                {
+                    _logger.LogError("Failed to create Elasticsearch index: {Error}", createIndexResponse.DebugInformation);
+                    return false;
+                }
+                
+                _logger.LogInformation("Elasticsearch index created successfully: {IndexName}", _indexName);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating Elasticsearch index: {IndexName}", _indexName);
+                return false;
+            }
+        }
+        
+        public async Task ReindexAllContentAsync()
+        {
+            try
+            {
+                // Ensure index exists
+                var indexExists = await EnsureIndexExistsAsync();
+                if (!indexExists)
+                {
+                    _logger.LogError("Cannot reindex content because the index could not be created");
+                    return;
+                }
+                
+                _logger.LogInformation("Starting reindexing of all content to Elasticsearch");
+                
+                // Get all content from database
+                var allContent = await _dbContext.Content
+                    .Include(c => c.Creator)
+                    .ToListAsync();
+                
+                int total = allContent.Count;
+                int success = 0;
+                int failure = 0;
+                
+                // Use bulk API for better performance with many documents
+                var bulkDescriptor = new BulkDescriptor();
+                
+                foreach (var content in allContent)
+                {
+                    bulkDescriptor.Index<Content>(op => op
+                        .Index(_indexName)
+                        .Id(content.Id.ToString())
+                        .Document(content)
+                    );
+                }
+                
+                // Execute bulk indexing
+                var bulkResponse = await _elasticClient.BulkAsync(bulkDescriptor);
+                
+                if (bulkResponse.IsValid)
+                {
+                    success = total;
+                    _logger.LogInformation("Successfully reindexed {Count} content items", success);
+                }
+                else
+                {
+                    // Count successes and failures
+                    success = bulkResponse.Items.Count(i => !i.IsValid);
+                    failure = total - success;
+                    
+                    _logger.LogWarning("Reindexing completed with some errors: {SuccessCount} succeeded, {FailureCount} failed", 
+                        success, failure);
+                    
+                    foreach (var item in bulkResponse.ItemsWithErrors)
+                    {
+                        _logger.LogError("Failed to index content {Id}: {Error}", 
+                            item.Id, item.Error?.Reason);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during content reindexing");
+            }
+        }
+        
+        public async Task<bool> PingElasticsearchAsync()
+        {
+            try
+            {
+                var pingResponse = await _elasticClient.PingAsync();
+                return pingResponse.IsValid;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error pinging Elasticsearch");
+                return false;
             }
         }
 
