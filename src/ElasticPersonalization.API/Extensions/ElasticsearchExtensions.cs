@@ -30,9 +30,7 @@ namespace ElasticPersonalization.API.Extensions
                 .EnableDebugMode()
                 .PrettyJson()
                 .RequestTimeout(TimeSpan.FromMinutes(2))
-                .MaximumRetries(5)
-                .RetryOnHttpError(false)
-                .EnableApiVersioningHeader();
+                .MaximumRetries(5);
             
             // Add authentication if provided
             var username = configuration["ElasticsearchSettings:Username"];
