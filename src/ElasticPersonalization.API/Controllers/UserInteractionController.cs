@@ -25,7 +25,7 @@ namespace ElasticPersonalization.API.Controllers
         [HttpPost("share")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<UserShare>> ShareContent([FromQuery] int userId, [FromQuery] string contentId)
+        public async Task<ActionResult<UserShare>> ShareContent([FromQuery] int userId, [FromQuery] int contentId)
         {
             try
             {
@@ -47,7 +47,7 @@ namespace ElasticPersonalization.API.Controllers
         [HttpDelete("share")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> RemoveShare([FromQuery] int userId, [FromQuery] string contentId)
+        public async Task<IActionResult> RemoveShare([FromQuery] int userId, [FromQuery] int contentId)
         {
             try
             {
@@ -69,7 +69,7 @@ namespace ElasticPersonalization.API.Controllers
         [HttpPost("like")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<UserLike>> LikeContent([FromQuery] int userId, [FromQuery] string contentId)
+        public async Task<ActionResult<UserLike>> LikeContent([FromQuery] int userId, [FromQuery] int contentId)
         {
             try
             {
@@ -91,7 +91,7 @@ namespace ElasticPersonalization.API.Controllers
         [HttpDelete("like")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> RemoveLike([FromQuery] int userId, [FromQuery] string contentId)
+        public async Task<IActionResult> RemoveLike([FromQuery] int userId, [FromQuery] int contentId)
         {
             try
             {
@@ -113,7 +113,7 @@ namespace ElasticPersonalization.API.Controllers
         [HttpPost("comment")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<UserComment>> CommentOnContent([FromQuery] int userId, [FromQuery] string contentId, [FromBody] CommentRequest request)
+        public async Task<ActionResult<UserComment>> CommentOnContent([FromQuery] int userId, [FromQuery] int contentId, [FromBody] CommentRequest request)
         {
             try
             {
