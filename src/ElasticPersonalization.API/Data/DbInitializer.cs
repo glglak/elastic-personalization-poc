@@ -18,16 +18,19 @@ namespace ElasticPersonalization.API.Data
             {
                 logger.LogInformation("Starting database initialization...");
                 
-                // Get the database context
-                using var dbContext = serviceProvider.GetRequiredService<ContentActionsDbContext>();
-                
-                // Apply migrations instead of just creating the database
-                logger.LogInformation("Applying pending migrations...");
-                dbContext.Database.Migrate();
-                logger.LogInformation("Migrations applied successfully.");
-                
-                // Add sample data if the tables are empty
-                AddSampleData(dbContext, logger);
+                // Get a scoped service provider for each operation
+                using (var scope = serviceProvider.CreateScope())
+                {
+                    var dbContext = scope.ServiceProvider.GetRequiredService<ContentActionsDbContext>();
+                    
+                    // Apply migrations
+                    logger.LogInformation("Applying pending migrations...");
+                    dbContext.Database.Migrate();
+                    logger.LogInformation("Migrations applied successfully.");
+                    
+                    // Add sample data if the tables are empty
+                    AddSampleData(dbContext, logger);
+                }
                 
                 logger.LogInformation("Database initialization completed successfully.");
             }
@@ -142,6 +145,14 @@ namespace ElasticPersonalization.API.Data
                         new UserComment { UserId = users[1].Id, ContentId = contentItems[1].Id, CommentText = "Very informative content." }
                     };
                     dbContext.Comments.AddRange(comments);
+                    
+                    // Add shares
+                    var shares = new List<UserShare>
+                    {
+                        new UserShare { UserId = users[0].Id, ContentId = contentItems[1].Id },
+                        new UserShare { UserId = users[1].Id, ContentId = contentItems[0].Id }
+                    };
+                    dbContext.Shares.AddRange(shares);
                     
                     // Add follows
                     var follows = new List<UserFollow>
