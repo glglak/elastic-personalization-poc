@@ -6,9 +6,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: elastic-personalization-api
     ports:
-      - "5000:80"
-      - "5001:443"
+      - "5000:8080"  # Use the container port we set in the Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__ContentActionsConnection=Server=db;Database=ContentActions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;
@@ -20,43 +20,78 @@ services:
       - db
       - elasticsearch
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # SQL Server
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: elastic-personalization-db
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=YourStrongPassword!
+      - MSSQL_PID=Express
     ports:
       - "1433:1433"
     volumes:
       - sqldata:/var/opt/mssql
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrongPassword! -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Elasticsearch
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    container_name: elastic-personalization-es
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
     ports:
       - "9200:9200"
       - "9300:9300"
     volumes:
       - esdata:/usr/share/elasticsearch/data
     restart: always
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=50s"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Kibana (optional, for Elasticsearch management)
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.10
+    container_name: elastic-personalization-kibana
     ports:
       - "5601:5601"
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana.localhost
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 volumes:
   sqldata:
