@@ -22,14 +22,18 @@ namespace ElasticPersonalization.API.Controllers
             _logger = logger;
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<ContentDto>> GetContent(string id)
+        public async Task<ActionResult<ContentDto>> GetContent(int id)
         {
             try
             {
                 var content = await _contentService.GetContentAsync(id);
+                if (content == null)
+                {
+                    return NotFound($"Content with ID {id} not found");
+                }
                 return Ok(content);
             }
             catch (ArgumentException ex)
@@ -64,15 +68,19 @@ namespace ElasticPersonalization.API.Controllers
             }
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:int}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ContentDto>> UpdateContent(string id, UpdateContentDto contentDto)
+        public async Task<ActionResult<ContentDto>> UpdateContent(int id, UpdateContentDto contentDto)
         {
             try
             {
                 var updatedContent = await _contentService.UpdateContentAsync(id, contentDto);
+                if (updatedContent == null)
+                {
+                    return NotFound($"Content with ID {id} not found");
+                }
                 return Ok(updatedContent);
             }
             catch (ArgumentException ex)
@@ -86,10 +94,10 @@ namespace ElasticPersonalization.API.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> DeleteContent(string id)
+        public async Task<IActionResult> DeleteContent(int id)
         {
             try
             {
@@ -155,7 +163,7 @@ namespace ElasticPersonalization.API.Controllers
             }
         }
 
-        [HttpGet("creator/{creatorId}")]
+        [HttpGet("creator/{creatorId:int}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<ContentDto>>> GetContentByCreator(int creatorId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
@@ -168,6 +176,40 @@ namespace ElasticPersonalization.API.Controllers
             {
                 _logger.LogError(ex, "Error retrieving content by creator {CreatorId}", creatorId);
                 return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while retrieving content by creator");
+            }
+        }
+        
+        [HttpPost("index/ensure")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> EnsureIndexExists()
+        {
+            try
+            {
+                var result = await _contentService.EnsureIndexExistsAsync();
+                return Ok(new { Success = result, Message = result ? "Index created or verified successfully" : "Failed to create index" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error ensuring Elasticsearch index exists");
+                return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while ensuring index exists");
+            }
+        }
+        
+        [HttpPost("index/reindex")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ReindexAll()
+        {
+            try
+            {
+                await _contentService.ReindexAllContentAsync();
+                return Ok(new { Success = true, Message = "Content reindexing started successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reindexing all content");
+                return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while reindexing content");
             }
         }
     }
