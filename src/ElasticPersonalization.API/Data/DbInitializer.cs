@@ -6,6 +6,7 @@ using ElasticPersonalization.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 namespace ElasticPersonalization.API.Data
 {
@@ -20,9 +21,10 @@ namespace ElasticPersonalization.API.Data
                 // Get the database context
                 using var dbContext = serviceProvider.GetRequiredService<ContentActionsDbContext>();
                 
-                // Check if the database exists, and create it if it doesn't
-                logger.LogInformation("Ensuring database exists...");
-                dbContext.Database.EnsureCreated();
+                // Apply migrations instead of just creating the database
+                logger.LogInformation("Applying pending migrations...");
+                dbContext.Database.Migrate();
+                logger.LogInformation("Migrations applied successfully.");
                 
                 // Add sample data if the tables are empty
                 AddSampleData(dbContext, logger);
