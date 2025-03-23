@@ -34,7 +34,7 @@ The architecture follows a clean, layered approach:
 
 ## 🚀 Getting Started
 
-### Using Docker for Windows
+### Using Docker for Windows (Without Docker Compose)
 
 1. **Prerequisites**:
    - [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) installed and running
@@ -47,44 +47,119 @@ The architecture follows a clean, layered approach:
    cd elastic-personalization-poc
    ```
 
-3. **Start the services with Docker Compose**:
+3. **Create a Docker network**:
    ```powershell
-   # Make sure Docker Desktop is running first
-   docker-compose up -d
+   docker network create elastic-personalization-network
    ```
 
-   This will:
-   - Build the API image
-   - Start SQL Server
-   - Start Elasticsearch and Kibana
-   - Initialize the database with migrations
-   - Set up Elasticsearch indices
-
-4. **Verify the services are running**:
+4. **Start SQL Server**:
    ```powershell
-   docker-compose ps
+   docker run -d --name elastic-personalization-db ^
+     --network elastic-personalization-network ^
+     -e "ACCEPT_EULA=Y" ^
+     -e "SA_PASSWORD=YourStrongPassword!" ^
+     -e "MSSQL_PID=Express" ^
+     -p 1433:1433 ^
+     mcr.microsoft.com/mssql/server:2022-latest
    ```
 
-   All services should show as "running" and health checks should pass after a minute or two.
-
-5. **Check application health**:
+5. **Start Elasticsearch**:
    ```powershell
-   # Using curl (if installed)
+   docker run -d --name elastic-personalization-es ^
+     --network elastic-personalization-network ^
+     -e "discovery.type=single-node" ^
+     -e "xpack.security.enabled=false" ^
+     -e "ES_JAVA_OPTS=-Xms512m -Xmx512m" ^
+     -p 9200:9200 ^
+     -p 9300:9300 ^
+     docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+   ```
+
+6. **Start Kibana (optional)**:
+   ```powershell
+   docker run -d --name elastic-personalization-kibana ^
+     --network elastic-personalization-network ^
+     -e "ELASTICSEARCH_HOSTS=http://elastic-personalization-es:9200" ^
+     -p 5601:5601 ^
+     docker.elastic.co/kibana/kibana:7.17.10
+   ```
+
+7. **Build and run the API**:
+   ```powershell
+   # Build the API image
+   docker build -t elastic-personalization-api .
+
+   # Run the API container
+   docker run -d --name elastic-personalization-api ^
+     --network elastic-personalization-network ^
+     -e "ASPNETCORE_ENVIRONMENT=Development" ^
+     -e "ConnectionStrings__ContentActionsConnection=Server=elastic-personalization-db;Database=ContentActions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;" ^
+     -e "ElasticsearchSettings__Url=http://elastic-personalization-es:9200" ^
+     -e "ElasticsearchSettings__DefaultIndex=content" ^
+     -p 5000:8080 ^
+     elastic-personalization-api
+   ```
+
+8. **Verify the containers are running**:
+   ```powershell
+   docker ps
+   ```
+
+9. **Check if the application is healthy**:
+   ```powershell
+   # Wait a minute for all services to initialize
+   # Then check health using curl or browser
    curl http://localhost:5000/api/health
-
-   # Or simply open in your browser
-   # http://localhost:5000/api/health
    ```
 
-6. **Access the services**:
-   - API: http://localhost:5000
-   - Kibana: http://localhost:5601 (useful for exploring Elasticsearch data)
+10. **Access the services**:
+    - API: http://localhost:5000
+    - Kibana: http://localhost:5601 (useful for exploring Elasticsearch data)
 
-7. **Troubleshooting Docker for Windows issues**:
-   - If containers fail to start, check Docker Desktop logs
-   - Ensure WSL 2 is enabled for better performance
-   - Try increasing Docker Desktop resource allocations (Memory, CPU)
-   - For port conflicts, modify the port mappings in docker-compose.yml
+11. **Stopping and cleaning up**:
+    ```powershell
+    # Stop and remove containers
+    docker stop elastic-personalization-api elastic-personalization-es elastic-personalization-db elastic-personalization-kibana
+    docker rm elastic-personalization-api elastic-personalization-es elastic-personalization-db elastic-personalization-kibana
+    
+    # Remove network
+    docker network rm elastic-personalization-network
+    ```
+
+### Troubleshooting Docker for Windows issues
+
+- **SQL Server container fails to start**:
+  ```powershell
+  # Check container logs
+  docker logs elastic-personalization-db
+  
+  # Try increasing memory in Docker Desktop settings
+  # SQL Server requires at least 2GB RAM
+  ```
+
+- **Elasticsearch container fails to start**:
+  ```powershell
+  # Check container logs
+  docker logs elastic-personalization-es
+  
+  # Elasticsearch may need more memory or increased virtual memory limits
+  ```
+
+- **API container fails to connect to database or Elasticsearch**:
+  ```powershell
+  # Check API container logs
+  docker logs elastic-personalization-api
+  
+  # Verify network connectivity
+  docker exec -it elastic-personalization-api ping elastic-personalization-db
+  docker exec -it elastic-personalization-api ping elastic-personalization-es
+  ```
+
+- **Initialize Elasticsearch index manually**:
+  ```powershell
+  # If the index wasn't created automatically, initialize it using the health endpoint
+  curl -X POST http://localhost:5000/api/health/elasticsearch/initialize
+  ```
 
 ### Health Monitoring
 
@@ -121,7 +196,6 @@ The project follows a clean architecture pattern with the following components:
 - `src/ElasticPersonalization.API/Controllers/`: API endpoints
 - `scripts/`: Utility scripts for setup and maintenance
 - `docs/`: Documentation assets including diagrams
-- `docker-compose.yml`: Docker services configuration
 - `Dockerfile`: API container build instructions
 
 ## 📚 Key Features
@@ -168,18 +242,13 @@ The project follows a clean architecture pattern with the following components:
 
 ### Local Development with Docker for Windows
 
-1. Clone the repository
-2. Start the required services:
-   ```powershell
-   # Start only database and Elasticsearch
-   docker-compose up -d db elasticsearch kibana
-   ```
-3. Run the API locally (outside Docker):
+1. Start the required services with Docker (as shown above)
+2. Run the API locally (outside Docker):
    ```powershell
    # From the project root
    dotnet run --project src/ElasticPersonalization.API
    ```
-4. For debugging in Visual Studio or Visual Studio Code:
+3. For debugging in Visual Studio or Visual Studio Code:
    - Open the solution in Visual Studio
    - Update connection strings in appsettings.Development.json to point to containerized services:
    ```json
@@ -192,16 +261,6 @@ The project follows a clean architecture pattern with the following components:
      }
    }
    ```
-
-### Stopping the Services
-
-```powershell
-# Stop all containers but preserve data
-docker-compose down
-
-# Or to completely remove everything including volumes
-docker-compose down -v
-```
 
 ## 🔄 Recent Updates
 
