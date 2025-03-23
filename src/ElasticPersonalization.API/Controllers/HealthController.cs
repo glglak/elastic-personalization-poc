@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using ElasticPersonalization.API.Models;
 using ElasticPersonalization.Core.Interfaces;
+using ElasticPersonalization.Core.Entities;
 using ElasticPersonalization.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -289,7 +290,7 @@ namespace ElasticPersonalization.API.Controllers
                 {
                     try
                     {
-                        var countResponse = await _elasticClient.CountAsync<Content>(c => c
+                        var countResponse = await _elasticClient.CountAsync<Core.Entities.Content>(c => c
                             .Index(_elasticClient.ConnectionSettings.DefaultIndex));
                         
                         if (countResponse.IsValid)
