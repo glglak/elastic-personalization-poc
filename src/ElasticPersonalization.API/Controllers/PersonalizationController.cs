@@ -46,7 +46,7 @@ namespace ElasticPersonalization.API.Controllers
         [HttpGet("score/{userId}/{contentId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<double>> GetPersonalizationScore(int userId, string contentId)
+        public async Task<ActionResult<double>> GetPersonalizationScore(int userId, int contentId)
         {
             try
             {
