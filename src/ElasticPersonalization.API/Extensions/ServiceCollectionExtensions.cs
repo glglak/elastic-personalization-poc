@@ -1,12 +1,16 @@
 using ElasticPersonalization.Core.Configuration;
 using Elasticsearch.Net;
 using Nest;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace ElasticPersonalization.API.Extensions
 {
     public static class ServiceCollectionExtensions
     {
-        public static void AddElasticsearch(this IServiceCollection services, IConfiguration configuration)
+        // Rename the method to avoid ambiguity
+        public static void ConfigureElasticsearch(this IServiceCollection services, IConfiguration configuration)
         {
             var elasticConfig = configuration.GetSection("ElasticsearchSettings").Get<ElasticsearchSettings>() ?? 
                 throw new InvalidOperationException("Elasticsearch settings are missing from configuration");
