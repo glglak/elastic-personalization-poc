@@ -67,66 +67,65 @@ builder.Services.AddScoped<IContentService, ContentService>();
 var app = builder.Build();
 
 // Initialize the database on startup with retry logic
-using (var scope = app.Services.CreateScope())
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+logger.LogInformation("Initializing database...");
+
+bool initialized = false;
+int retryCount = 0;
+int maxRetries = 10;
+
+while (!initialized && retryCount < maxRetries)
 {
-    var services = scope.ServiceProvider;
-    var logger = services.GetRequiredService<ILogger<Program>>();
-    
-    logger.LogInformation("Initializing database...");
-    
-    bool initialized = false;
-    int retryCount = 0;
-    int maxRetries = 10;
-    
-    while (!initialized && retryCount < maxRetries)
+    try
     {
-        try
+        // Attempt to initialize the database
+        DbInitializer.Initialize(app.Services, logger);
+        initialized = true;
+        logger.LogInformation("Database initialized successfully");
+    }
+    catch (SqlException ex) when (ex.Number == 53 || ex.Number == 40 || ex.Number == 18456)
+    {
+        // SQL Server is not available yet - retry
+        retryCount++;
+        logger.LogWarning($"Database connection failed (attempt {retryCount}/{maxRetries}): {ex.Message}");
+        
+        if (retryCount < maxRetries)
         {
-            // Attempt to initialize the database
-            DbInitializer.Initialize(services, logger);
-            initialized = true;
-            logger.LogInformation("Database initialized successfully");
+            logger.LogInformation($"Waiting before retry...");
+            Thread.Sleep(TimeSpan.FromSeconds(5));
         }
-        catch (SqlException ex) when (ex.Number == 53 || ex.Number == 40 || ex.Number == 18456)
+        else
         {
-            // SQL Server is not available yet - retry
-            retryCount++;
-            logger.LogWarning($"Database connection failed (attempt {retryCount}/{maxRetries}): {ex.Message}");
-            
-            if (retryCount < maxRetries)
-            {
-                logger.LogInformation($"Waiting before retry...");
-                Thread.Sleep(TimeSpan.FromSeconds(5));
-            }
-            else
-            {
-                logger.LogError($"Failed to connect to database after {maxRetries} attempts");
-                throw;
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An error occurred while initializing the database");
+            logger.LogError($"Failed to connect to database after {maxRetries} attempts");
             throw;
         }
     }
-    
-    // Initialize Elasticsearch index if database is ready
-    if (initialized)
+    catch (Exception ex)
     {
-        try
+        logger.LogError(ex, "An error occurred while initializing the database");
+        throw;
+    }
+}
+
+// Initialize Elasticsearch index if database is ready
+if (initialized)
+{
+    try
+    {
+        using (var scope = app.Services.CreateScope())
         {
-            var elasticClient = services.GetRequiredService<IElasticClient>();
-            var contentService = services.GetRequiredService<IContentService>();
+            var elasticClient = scope.ServiceProvider.GetRequiredService<IElasticClient>();
+            var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
             
             logger.LogInformation("Initializing Elasticsearch index...");
             contentService.EnsureIndexExistsAsync().GetAwaiter().GetResult();
             logger.LogInformation("Elasticsearch index initialized successfully");
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An error occurred while initializing Elasticsearch index");
-        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while initializing Elasticsearch index");
     }
 }
 
