@@ -110,26 +110,31 @@ namespace ElasticPersonalization.Infrastructure.Data
                         v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, new System.Text.Json.JsonSerializerOptions()) ?? new List<string>());
             });
             
-            // User interaction base entity and derived types configuration
+            // UserInteraction base entity configuration
+            // Use TPC (Table-per-Concrete-type) mapping strategy
             modelBuilder.Entity<UserInteraction>()
-                .UseTpcMappingStrategy(); // Table-per-concrete-type approach
+                .UseTpcMappingStrategy();
+                
+            // UserInteraction - Set primary key on the base type
+            modelBuilder.Entity<UserInteraction>()
+                .HasKey(ui => ui.Id);
                 
             // UserShare configuration
             modelBuilder.Entity<UserShare>(entity => {
                 entity.ToTable("Shares");
-                entity.HasKey(s => s.Id);
+                // Don't set key here - it's inherited from the base type
             });
                 
             // UserLike configuration
             modelBuilder.Entity<UserLike>(entity => {
                 entity.ToTable("Likes");
-                entity.HasKey(l => l.Id);
+                // Don't set key here - it's inherited from the base type
             });
                 
             // UserComment configuration
             modelBuilder.Entity<UserComment>(entity => {
                 entity.ToTable("Comments");
-                entity.HasKey(c => c.Id);
+                // Don't set key here - it's inherited from the base type
                 
                 entity.Property(c => c.CommentText)
                     .IsRequired()
@@ -139,7 +144,7 @@ namespace ElasticPersonalization.Infrastructure.Data
             // UserFollow configuration
             modelBuilder.Entity<UserFollow>(entity => {
                 entity.ToTable("Follows");
-                entity.HasKey(f => f.Id);
+                // Don't set key here - it's inherited from the base type
                 
                 // Create unique index for follow relationships
                 entity.HasIndex(f => new { f.UserId, f.FollowedUserId })
